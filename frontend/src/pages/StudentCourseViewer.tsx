@@ -177,7 +177,7 @@ export default function StudentCourseViewer() {
   const parsedDrive = activeLesson ? parseDriveLink(activeLesson.drive_link) : null;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row overflow-hidden h-screen">
+    <div className="min-h-screen bg-[#0a0a0f] text-slate-100 flex flex-col lg:flex-row overflow-hidden h-screen">
       
       {/* Mobile Top Navbar */}
       <header className="lg:hidden bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between flex-shrink-0 z-30">
@@ -190,7 +190,7 @@ export default function StudentCourseViewer() {
         <span className="font-bold text-sm text-slate-200 truncate max-w-[180px]">
           {course?.title}
         </span>
-        <Link to="/dashboard" className="text-indigo-400 text-xs font-semibold flex items-center gap-1">
+        <Link to="/dashboard" className="text-indigo-400 text-xs font-bold flex items-center gap-1">
           <ArrowLeft className="h-3 w-3" />
           <span>Dashboard</span>
         </Link>
@@ -200,33 +200,33 @@ export default function StudentCourseViewer() {
       <aside 
         className={`fixed inset-y-0 left-0 transform ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-0'
-        } lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out z-40 bg-slate-900 border-r border-slate-800 flex flex-col w-80 flex-shrink-0 h-full`}
+        } lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out z-40 bg-[#0f0f1a] border-r border-white/5 flex flex-col w-80 flex-shrink-0 h-full`}
         style={{ display: sidebarOpen || window.innerWidth >= 1024 ? 'flex' : 'none' }}
       >
         {/* Brand/Return header */}
-        <div className="p-5 border-b border-slate-800 flex-shrink-0">
-          <Link to="/dashboard" className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-white mb-4 transition font-medium">
+        <div className="p-5 border-b border-white/5 flex-shrink-0">
+          <Link to="/dashboard" className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-white mb-4 transition font-semibold">
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back to Student Dashboard</span>
+            <span>Back to Dashboard</span>
           </Link>
-          <h2 className="font-extrabold text-lg text-white leading-snug line-clamp-2">
+          <h2 className="font-black text-base text-white leading-snug line-clamp-2">
             {course?.title}
           </h2>
         </div>
 
         {/* Progress Tracker */}
-        <div className="px-5 py-4 border-b border-slate-800 bg-slate-950/40 flex-shrink-0">
-          <div className="flex justify-between text-xs font-semibold mb-2">
+        <div className="px-5 py-4 border-b border-white/5 bg-slate-950/20 flex-shrink-0">
+          <div className="flex justify-between text-xs font-bold mb-2">
             <span className="text-slate-400">Course Progress</span>
             <span className="text-indigo-400">{progressPercent}%</span>
           </div>
-          <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-850">
+          <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden border border-white/5">
             <div 
               className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full transition-all duration-500" 
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <p className="text-[10px] text-slate-500 mt-2 font-medium">
+          <p className="text-[10px] text-slate-500 mt-2 font-semibold">
             {completedCount} of {totalLessonsCount} items completed
           </p>
         </div>
@@ -239,11 +239,11 @@ export default function StudentCourseViewer() {
             chapters.map((ch, chIdx) => {
               const isExpanded = !!expandedChapters[ch.id];
               return (
-                <div key={ch.id} className="border border-slate-800/60 rounded-xl overflow-hidden bg-slate-950/20">
+                <div key={ch.id} className="border border-white/5 rounded-xl overflow-hidden bg-white/[0.01]">
                   {/* Chapter title header bar */}
                   <button
                     onClick={() => toggleChapter(ch.id)}
-                    className="w-full flex items-center justify-between p-3.5 hover:bg-slate-850 text-left transition text-sm font-bold text-slate-200 border-b border-slate-800/30 cursor-pointer"
+                    className="w-full flex items-center justify-between p-3.5 hover:bg-white/5 text-left transition text-xs font-black text-slate-200 border-b border-white/5 cursor-pointer"
                   >
                     <span className="truncate max-w-[210px]">
                       Module {chIdx + 1}: {ch.title}
@@ -253,7 +253,7 @@ export default function StudentCourseViewer() {
 
                   {/* Lessons list */}
                   {isExpanded && (
-                    <div className="p-1.5 space-y-1 bg-slate-900/35">
+                    <div className="p-1.5 space-y-1 bg-slate-950/40">
                       {ch.lessons && ch.lessons.length > 0 ? (
                         ch.lessons.map((les) => {
                           const isActive = activeLesson?.id === les.id;
@@ -262,14 +262,14 @@ export default function StudentCourseViewer() {
                             <div
                               key={les.id}
                               onClick={() => handleLessonSelect(les)}
-                              className={`group w-full flex items-center justify-between p-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                              className={`group w-full flex items-center justify-between p-2.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
                                 isActive 
-                                  ? 'bg-indigo-600 text-white shadow' 
-                                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850/60'
+                                  ? 'bg-indigo-600/25 border-indigo-500/30 text-white shadow-lg shadow-indigo-500/5' 
+                                  : 'text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5'
                               }`}
                             >
                               <div className="flex items-center gap-2.5 truncate max-w-[190px]">
-                                <span className={isActive ? 'text-white' : 'text-indigo-400 group-hover:text-indigo-300'}>
+                                <span className={isActive ? 'text-indigo-400' : 'text-indigo-500/60 group-hover:text-indigo-400'}>
                                   {getLessonIcon(les.type)}
                                 </span>
                                 <span className="truncate">{les.title}</span>
@@ -280,8 +280,8 @@ export default function StudentCourseViewer() {
                                 onClick={(e) => toggleCompletion(e, les.id)}
                                 className={`p-1 rounded transition-colors ${
                                   isActive 
-                                    ? 'hover:bg-indigo-700 text-white' 
-                                    : 'hover:bg-slate-800 text-slate-500 hover:text-slate-350'
+                                    ? 'hover:bg-indigo-650/40 text-white' 
+                                    : 'hover:bg-white/5 text-slate-500 hover:text-slate-350'
                                 }`}
                               >
                                 {isCompleted ? (
@@ -294,7 +294,7 @@ export default function StudentCourseViewer() {
                           );
                         })
                       ) : (
-                        <p className="text-[10px] text-slate-650 text-center py-2">No lessons in this module.</p>
+                        <p className="text-[10px] text-slate-600 text-center py-2">No lessons in this module.</p>
                       )}
                     </div>
                   )}
@@ -306,17 +306,17 @@ export default function StudentCourseViewer() {
       </aside>
 
       {/* Main Content Player Area */}
-      <main className="flex-grow flex flex-col h-full bg-slate-950 overflow-y-auto">
+      <main className="flex-grow flex flex-col h-full bg-[#0a0a0f] overflow-y-auto">
         {loading ? (
           <div className="flex-grow flex flex-col items-center justify-center py-20">
-            <div className="h-10 w-10 border-4 border-slate-800 border-t-indigo-500 rounded-full animate-spin mb-4" />
-            <p className="text-slate-500 text-sm">Loading learning player...</p>
+            <div className="h-10 w-10 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4" />
+            <p className="text-slate-555 text-sm">Loading learning player...</p>
           </div>
         ) : activeLesson ? (
           <div className="flex-grow flex flex-col h-full">
             {/* Player Stream Container */}
-            <div className="bg-slate-900 border-b border-slate-800/80 p-4 sm:p-6 flex items-center justify-center flex-shrink-0 relative">
-              <div className="w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative">
+            <div className="bg-[#0c0c14] border-b border-white/5 p-4 sm:p-6 flex items-center justify-center flex-shrink-0 relative">
+              <div className="w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden border border-white/5 shadow-2xl relative">
                 {parsedDrive ? (
                   <iframe
                     src={parsedDrive.embedUrl}
@@ -350,12 +350,12 @@ export default function StudentCourseViewer() {
 
             {/* Lesson Info Details */}
             <div className="p-6 sm:p-8 max-w-4xl mx-auto w-full space-y-6 flex-grow">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-900 pb-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/5 pb-6">
                 <div>
-                  <span className="bg-indigo-950 text-indigo-400 text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full border border-indigo-900">
+                  <span className="bg-indigo-950 text-indigo-400 text-[9px] font-black tracking-widest uppercase px-3 py-1 rounded-full border border-indigo-900/40">
                     {activeLesson.type.toUpperCase()} LESSON
                   </span>
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-3 tracking-tight">
+                  <h1 className="text-2xl sm:text-3xl font-black text-white mt-3.5 tracking-tight leading-tight">
                     {activeLesson.title}
                   </h1>
                 </div>
@@ -363,7 +363,7 @@ export default function StudentCourseViewer() {
                 {/* Complete & Next Navigation */}
                 <button
                   onClick={handleMarkCompleteAndNext}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-5 rounded-xl shadow-lg shadow-indigo-600/15 hover:shadow-indigo-600/25 transition duration-300 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-5 rounded-xl shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 transition duration-300 flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto text-sm"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   <span>
@@ -376,21 +376,22 @@ export default function StudentCourseViewer() {
 
               {/* Lesson Instructions Guide */}
               <div className="space-y-4">
-                <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">Lesson Resources & Notes</h3>
-                <div className="bg-slate-900/40 rounded-2xl p-6 border border-slate-900 text-slate-400 leading-relaxed text-sm">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Lesson Resources & Notes</h3>
+                <div className="rounded-2xl p-6 border border-white/5 text-slate-400 leading-relaxed text-xs"
+                  style={{background: 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.005) 100%)'}}>
                   <p className="mb-4">
                     Welcome to this module. Please watch/review the embedded resource from Google Drive above. 
                     If the media fails to load, ensure you are logged into your Google account in this browser window, 
                     or verify the administrator has set the Drive file permissions to "Anyone with the link can view".
                   </p>
                   {activeLesson.drive_link && (
-                    <div className="pt-4 border-t border-slate-800">
-                      <span className="text-xs font-semibold text-slate-500 block mb-1">Source Link:</span>
+                    <div className="pt-4 border-t border-white/5">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Source Link:</span>
                       <a 
                         href={activeLesson.drive_link} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="text-xs text-indigo-400 hover:underline break-all"
+                        className="text-indigo-400 hover:underline break-all"
                       >
                         {activeLesson.drive_link}
                       </a>
@@ -403,7 +404,7 @@ export default function StudentCourseViewer() {
         ) : (
           <div className="flex-grow flex flex-col items-center justify-center p-8 text-center text-slate-500">
             <BookOpen className="h-12 w-12 text-slate-700 mb-4" />
-            <h3 className="text-lg font-bold text-slate-350 mb-1">No lesson active</h3>
+            <h3 className="text-lg font-bold text-slate-355 mb-1">No lesson active</h3>
             <p className="text-slate-550 text-xs">Please select a lesson from the module tree outline on the left.</p>
           </div>
         )}

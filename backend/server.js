@@ -267,13 +267,29 @@ app.get('/api/admin/analytics', authenticateToken, requireRole('admin'), async (
     const supa = db.getSupabase();
 
     if (supa) {
-      // Supabase SDK approach
-      const { count: totalStudents } = await supa.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student');
-      const { count: pendingStudents } = await supa.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student').eq('status', 'pending');
-      const { count: totalCourses } = await supa.from('courses').select('*', { count: 'exact', head: true });
-      const { count: totalEnrollments } = await supa.from('enrollments').select('*', { count: 'exact', head: true });
-      const { data: courses } = await supa.from('courses').select('id, title, category');
-      const { data: enrollments } = await supa.from('enrollments').select('course_id');
+      // Supabase SDK approach - Query in parallel to avoid roundtrip latency bottlenecks
+      const [
+        totalStudentsRes,
+        pendingStudentsRes,
+        totalCoursesRes,
+        totalEnrollmentsRes,
+        coursesRes,
+        enrollmentsRes
+      ] = await Promise.all([
+        supa.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+        supa.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student').eq('status', 'pending'),
+        supa.from('courses').select('*', { count: 'exact', head: true }),
+        supa.from('enrollments').select('*', { count: 'exact', head: true }),
+        supa.from('courses').select('id, title, category'),
+        supa.from('enrollments').select('course_id')
+      ]);
+
+      const totalStudents = totalStudentsRes.count;
+      const pendingStudents = pendingStudentsRes.count;
+      const totalCourses = totalCoursesRes.count;
+      const totalEnrollments = totalEnrollmentsRes.count;
+      const courses = coursesRes.data;
+      const enrollments = enrollmentsRes.data;
 
       const coursesDistribution = (courses || []).map(c => ({
         ...c,

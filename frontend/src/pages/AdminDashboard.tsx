@@ -118,13 +118,13 @@ export default function AdminDashboard() {
   const loadAdminData = async () => {
     setLoading(true);
     try {
-      const analyticData = await api.getAnalytics();
+      const [analyticData, studentsData, coursesData] = await Promise.all([
+        api.getAnalytics(),
+        api.getStudents(),
+        api.getCourses()
+      ]);
       setAnalytics(analyticData.analytics);
-
-      const studentsData = await api.getStudents();
       setStudents(studentsData.students || []);
-
-      const coursesData = await api.getCourses();
       setCourses(coursesData.courses || []);
     } catch (err) {
       console.error('Error loading admin panel:', err);
