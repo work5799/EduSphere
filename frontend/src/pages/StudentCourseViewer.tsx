@@ -174,7 +174,7 @@ export default function StudentCourseViewer() {
     }
   };
 
-  const parsedDrive = activeLesson ? parseDriveLink(activeLesson.drive_link) : null;
+  const parsedDrive = activeLesson ? parseDriveLink(activeLesson.drive_link, activeLesson.type) : null;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-slate-100 flex flex-col lg:flex-row overflow-hidden h-screen">
