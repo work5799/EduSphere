@@ -821,6 +821,42 @@ app.post('/api/admin/upload-thumbnail', authenticateToken, requireRole('admin'),
 });
 
 
+// --- TEST SUPABASE DIAGNOSTIC ---
+app.get('/api/test-supabase', async (req, res) => {
+  try {
+    const supa = db.getSupabase();
+    if (!supa) {
+      return res.json({ 
+        dbType: db.getDbType(),
+        message: 'Supabase client is not initialized. SUPABASE_URL/SUPABASE_SECRET_KEY might be missing.' 
+      });
+    }
+
+    const { data, error } = await supa.from('courses').select('*');
+    if (error) {
+      return res.status(500).json({ 
+        success: false, 
+        error: error,
+        message: error.message 
+      });
+    }
+
+    return res.json({ 
+      success: true, 
+      dbType: db.getDbType(),
+      count: data.length, 
+      data 
+    });
+  } catch (err) {
+    return res.status(500).json({ 
+      success: false, 
+      error: err.message, 
+      stack: err.stack 
+    });
+  }
+});
+
+
 // Start server
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
   app.listen(PORT, () => {
