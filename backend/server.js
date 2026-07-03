@@ -705,6 +705,10 @@ app.delete('/api/student/lessons/:lessonId/complete', authenticateToken, require
 
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`EduSphere backend running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`EduSphere backend running on port ${PORT}`);
+  });
+}
+
+module.exports = app;

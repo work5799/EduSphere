@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = typeof window !== 'undefined' && window.location.origin.includes('localhost')
+  ? 'http://localhost:5000/api'
+  : '/api';
 
 export function getToken(): string | null {
   return localStorage.getItem('edusphere_token');
