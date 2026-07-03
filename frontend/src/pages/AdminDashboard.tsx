@@ -60,7 +60,10 @@ interface Chapter {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'courses'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'courses'>(() => {
+    const saved = localStorage.getItem('edusphere_admin_tab');
+    return (saved as any) || 'overview';
+  });
   
   // Data States
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
@@ -107,6 +110,10 @@ export default function AdminDashboard() {
 
     loadAdminData();
   }, [navigate]);
+
+  useEffect(() => {
+    localStorage.setItem('edusphere_admin_tab', activeTab);
+  }, [activeTab]);
 
   const loadAdminData = async () => {
     setLoading(true);
