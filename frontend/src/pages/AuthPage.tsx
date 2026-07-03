@@ -78,7 +78,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center py-4 px-6 relative overflow-y-auto overflow-x-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-6 relative overflow-x-hidden">
       {/* Background gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.06),transparent_50%)]" />
       <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-indigo-500/5 blur-3xl" />
@@ -95,20 +95,20 @@ export default function AuthPage() {
 
       <div className="w-full max-w-md relative z-10">
         {/* Brand Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex bg-indigo-600 p-3 rounded-2xl shadow-xl shadow-indigo-600/30 mb-4">
-            <GraduationCap className="h-8 w-8 text-white" />
+        <div className="text-center mb-4">
+          <div className="inline-flex bg-indigo-600 p-3 rounded-2xl shadow-xl shadow-indigo-600/30 mb-3">
+            <GraduationCap className="h-7 w-7 text-white" />
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
+          <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
             {isLogin ? 'Welcome back to EduSphere' : 'Create Student Account'}
           </h2>
-          <p className="text-slate-500 mt-2 text-sm">
+          <p className="text-slate-500 mt-1 text-sm">
             {isLogin ? 'Login to continue your learning journey' : 'Register and await admin account activation'}
           </p>
         </div>
 
         {/* Auth Box */}
-        <div className="glass-premium rounded-3xl p-8 shadow-2xl relative">
+        <div className="glass-premium rounded-3xl p-6 shadow-2xl relative">
           
           {/* Info messages */}
           {infoMessage && (
