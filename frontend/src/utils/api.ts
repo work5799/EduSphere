@@ -74,6 +74,9 @@ export const api = {
   updateStudentStatus: (studentId: string, status: 'approved' | 'rejected' | 'pending') => 
     request(`/admin/students/${studentId}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
 
+  createUser: (userData: any) =>
+    request('/admin/users', { method: 'POST', body: JSON.stringify(userData) }),
+
   // Admin Analytics
   getAnalytics: () =>
     request('/admin/analytics'),

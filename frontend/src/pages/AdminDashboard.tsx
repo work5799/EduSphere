@@ -15,6 +15,7 @@ interface Student {
   status: 'pending' | 'approved' | 'rejected';
   phone: string;
   created_at: string;
+  role: 'admin' | 'student';
 }
 
 interface CourseDistribution {
@@ -86,6 +87,14 @@ export default function AdminDashboard() {
   const [courseCategory, setCourseCategory] = useState('');
   const [coursePrice, setCoursePrice] = useState(0);
   const [uploading, setUploading] = useState(false);
+
+  // User Modal States
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'admin' | 'student'>('student');
+  const [newUserPhone, setNewUserPhone] = useState('');
 
   // Outline builder form states
   const [showChapterFormFor, setShowChapterFormFor] = useState<string | null>(null); // 'new' or chapterId for editing
@@ -179,6 +188,33 @@ export default function AdminDashboard() {
     } catch (err: any) {
       alert(err.message || 'Image upload failed.');
       setUploading(false);
+    }
+  };
+
+  const handleUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserName || !newUserEmail || !newUserPassword || !newUserRole) return;
+
+    try {
+      await api.createUser({
+        name: newUserName,
+        email: newUserEmail,
+        password: newUserPassword,
+        role: newUserRole,
+        phone: newUserPhone
+      });
+
+      // Reset & close
+      setNewUserName('');
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserRole('student');
+      setNewUserPhone('');
+      setShowUserModal(false);
+
+      await loadAdminData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to create user account.');
     }
   };
 
@@ -371,7 +407,7 @@ export default function AdminDashboard() {
         <nav className="flex-1 px-3 py-6 space-y-1">
           {[
             { id: 'overview', label: 'Overview', icon: BarChart3, badge: null },
-            { id: 'students', label: 'Students', icon: Users, badge: analytics?.pendingStudents || null },
+            { id: 'students', label: 'Users', icon: Users, badge: analytics?.pendingStudents || null },
             { id: 'courses', label: 'Courses', icon: BookOpen, badge: null },
           ].map(item => (
             <button
@@ -426,13 +462,13 @@ export default function AdminDashboard() {
           <div>
             <h1 className="text-lg font-black text-white">
               {activeTab === 'overview' && 'Dashboard Overview'}
-              {activeTab === 'students' && 'Student Management'}
+              {activeTab === 'students' && 'User Management'}
               {activeTab === 'courses' && 'Course Management'}
               {activeOutlineCourse && `📚 ${activeOutlineCourse.title}`}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               {activeTab === 'overview' && 'Monitor your platform analytics'}
-              {activeTab === 'students' && 'Manage student approvals and access'}
+              {activeTab === 'students' && 'Manage student & admin roles and access'}
               {activeTab === 'courses' && 'Create and manage course content'}
             </p>
           </div>
@@ -441,7 +477,7 @@ export default function AdminDashboard() {
             {(['overview','students','courses'] as const).map(tab => (
               <button key={tab} onClick={() => { setActiveOutlineCourse(null); setActiveTab(tab); }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition border ${activeTab === tab ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white/5 text-slate-400 border-transparent'}`}>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === 'students' ? 'Users' : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
           </div>
@@ -695,34 +731,50 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* ── STUDENTS TAB ── */}
+              {/* ── USER MANAGEMENT TAB ── */}
               {activeTab === 'students' && (
                 <div className="max-w-7xl mx-auto">
                   <div className="rounded-2xl border border-white/8 overflow-hidden"
                     style={{background:'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)'}}>
                     <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
                       <div>
-                        <h3 className="font-bold text-white">Registered Students</h3>
-                        <p className="text-slate-500 text-xs mt-0.5">{students.length} total registrations</p>
+                        <h3 className="font-bold text-white">Registered Users</h3>
+                        <p className="text-slate-500 text-xs mt-0.5">{students.length} total user accounts</p>
                       </div>
-                      {analytics && analytics.pendingStudents > 0 && (
-                        <span className="bg-amber-500/15 text-amber-400 border border-amber-500/30 text-xs font-bold px-3 py-1.5 rounded-full">
-                          {analytics.pendingStudents} pending
-                        </span>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {analytics && analytics.pendingStudents > 0 && (
+                          <span className="bg-amber-500/15 text-amber-400 border border-amber-500/30 text-xs font-bold px-3 py-1.5 rounded-full">
+                            {analytics.pendingStudents} pending approval
+                          </span>
+                        )}
+                        <button onClick={() => {
+                            setNewUserName('');
+                            setNewUserEmail('');
+                            setNewUserPassword('');
+                            setNewUserRole('student');
+                            setNewUserPhone('');
+                            setShowUserModal(true);
+                          }}
+                          className="flex items-center gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl transition cursor-pointer"
+                        >
+                          <Plus className="h-4 w-4" />
+                          <span>Add New User</span>
+                        </button>
+                      </div>
                     </div>
 
                     {students.length === 0 ? (
                       <div className="text-center py-20 text-slate-600">
                         <Users className="h-8 w-8 mx-auto mb-3 opacity-30" />
-                        <p className="text-sm">No students registered yet.</p>
+                        <p className="text-sm">No users registered yet.</p>
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-white/5 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                              <th className="py-4 px-6 text-left">Student</th>
+                              <th className="py-4 px-6 text-left">User</th>
+                              <th className="py-4 px-6 text-left">Role</th>
                               <th className="py-4 px-6 text-left">Contact</th>
                               <th className="py-4 px-6 text-left">Registered</th>
                               <th className="py-4 px-6 text-left">Status</th>
@@ -739,6 +791,17 @@ export default function AdminDashboard() {
                                     </div>
                                     <span className="font-bold text-slate-200">{student.name}</span>
                                   </div>
+                                </td>
+                                <td className="py-4 px-6">
+                                  {student.role === 'admin' ? (
+                                    <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg">
+                                      Admin
+                                    </span>
+                                  ) : (
+                                    <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg">
+                                      Student
+                                    </span>
+                                  )}
                                 </td>
                                 <td className="py-4 px-6">
                                   <p className="text-slate-300 text-xs font-medium">{student.email}</p>
@@ -761,29 +824,37 @@ export default function AdminDashboard() {
                                 </td>
                                 <td className="py-4 px-6 text-right">
                                   <div className="flex items-center justify-end gap-2">
-                                    {student.status === 'pending' && (
+                                    {student.role === 'admin' ? (
+                                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider bg-white/5 border border-white/5 px-2.5 py-1.5 rounded-lg select-none">
+                                        Protected Admin
+                                      </span>
+                                    ) : (
                                       <>
-                                        <button onClick={() => handleStudentStatus(student.id, 'approved')}
-                                          className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 hover:border-emerald-500 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">
-                                          <Check className="h-3.5 w-3.5" /> Approve
-                                        </button>
-                                        <button onClick={() => handleStudentStatus(student.id, 'rejected')}
-                                          className="flex items-center gap-1.5 bg-rose-500/15 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 hover:border-rose-500 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">
-                                          <X className="h-3.5 w-3.5" /> Reject
-                                        </button>
+                                        {student.status === 'pending' && (
+                                          <>
+                                            <button onClick={() => handleStudentStatus(student.id, 'approved')}
+                                              className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 hover:border-emerald-500 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">
+                                              <Check className="h-3.5 w-3.5" /> Approve
+                                            </button>
+                                            <button onClick={() => handleStudentStatus(student.id, 'rejected')}
+                                              className="flex items-center gap-1.5 bg-rose-500/15 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 hover:border-rose-500 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">
+                                              <X className="h-3.5 w-3.5" /> Reject
+                                            </button>
+                                          </>
+                                        )}
+                                        {student.status === 'approved' && (
+                                          <button onClick={() => handleStudentStatus(student.id, 'rejected')}
+                                            className="bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-455 border border-white/5 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">
+                                            Deactivate
+                                          </button>
+                                        )}
+                                        {student.status === 'rejected' && (
+                                          <button onClick={() => handleStudentStatus(student.id, 'approved')}
+                                            className="bg-slate-800 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 border border-white/5 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">
+                                            Reactivate
+                                          </button>
+                                        )}
                                       </>
-                                    )}
-                                    {student.status === 'approved' && (
-                                      <button onClick={() => handleStudentStatus(student.id, 'rejected')}
-                                        className="bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-white/5 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">
-                                        Deactivate
-                                      </button>
-                                    )}
-                                    {student.status === 'rejected' && (
-                                      <button onClick={() => handleStudentStatus(student.id, 'approved')}
-                                        className="bg-slate-800 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 border border-white/5 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer">
-                                        Reactivate
-                                      </button>
                                     )}
                                   </div>
                                 </td>
@@ -896,6 +967,72 @@ export default function AdminDashboard() {
                               {editCourseId ? 'Save Changes' : 'Create Course'}
                             </button>
                             <button type="button" onClick={() => setShowCourseModal(false)}
+                              className="bg-slate-800 hover:bg-slate-700 text-slate-400 py-3 px-5 rounded-xl cursor-pointer transition">
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* User Account Modal */}
+                  {showUserModal && (
+                    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-6">
+                      <div className="rounded-2xl border border-white/10 w-full max-w-lg p-7 shadow-2xl relative"
+                        style={{background:'linear-gradient(135deg, #111122 0%, #0f0f1e 100%)'}}>
+                        <button onClick={() => setShowUserModal(false)}
+                          className="absolute top-5 right-5 text-slate-500 hover:text-white transition cursor-pointer">
+                          <X className="h-5 w-5" />
+                        </button>
+                        <h3 className="text-lg font-black text-white mb-6">
+                          ➕ Create New User Account
+                        </h3>
+                        <form onSubmit={handleUserSubmit} className="space-y-4">
+                          <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Name *</label>
+                            <input type="text" required value={newUserName} onChange={e => setNewUserName(e.target.value)}
+                              placeholder="e.g. John Doe"
+                              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Email Address *</label>
+                            <input type="email" required value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)}
+                              placeholder="e.g. john@example.com"
+                              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Role *</label>
+                              <select value={newUserRole} onChange={e => setNewUserRole(e.target.value as any)}
+                                className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white">
+                                <option value="student">Student</option>
+                                <option value="admin">System Admin</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Phone Number</label>
+                              <input type="text" value={newUserPhone} onChange={e => setNewUserPhone(e.target.value)}
+                                placeholder="e.g. +8801700000000"
+                                className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Password *</label>
+                            <input type="password" required value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)}
+                              placeholder="Minimum 6 characters"
+                              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
+                            />
+                          </div>
+                          <div className="flex gap-3 pt-2">
+                            <button type="submit"
+                              className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl cursor-pointer transition">
+                              Create Account
+                            </button>
+                            <button type="button" onClick={() => setShowUserModal(false)}
                               className="bg-slate-800 hover:bg-slate-700 text-slate-400 py-3 px-5 rounded-xl cursor-pointer transition">
                               Cancel
                             </button>

@@ -215,25 +215,61 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 });
 
 
-// --- ADMIN STUDENT MANAGEMENT ROUTES ---
+// --- ADMIN USER MANAGEMENT ROUTES ---
 
-// 1. Get all students
+// 1. Get all users (students and admins)
 app.get('/api/admin/students', authenticateToken, requireRole('admin'), async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT id, name, email, status, phone, created_at 
+      `SELECT id, name, email, role, status, phone, created_at 
        FROM users 
-       WHERE role = 'student' 
-       ORDER BY created_at DESC`
+       ORDER BY role ASC, created_at DESC`
     );
     res.json({ students: result.rows });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error fetching students list' });
+    res.status(500).json({ message: 'Server error fetching user list' });
   }
 });
 
-// 2. Approve, Reject, or Change Status of Student
+// 2. Create User account (Admin or Student) directly
+app.post('/api/admin/users', authenticateToken, requireRole('admin'), async (req, res) => {
+  const { name, email, password, role, phone } = req.body;
+
+  if (!name || !email || !password || !role) {
+    return res.status(400).json({ message: 'All required fields must be filled' });
+  }
+
+  if (!['admin', 'student'].includes(role)) {
+    return res.status(400).json({ message: 'Invalid role value' });
+  }
+
+  try {
+    // Check if email already exists
+    const emailCheck = await db.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
+    if (emailCheck.rows.length > 0) {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    const { v4: uuidv4 } = require('uuid');
+    const id = uuidv4();
+    const passwordHash = await bcrypt.hash(password, 10);
+    const status = 'approved'; // Directly approved since created by admin
+
+    await db.query(
+      `INSERT INTO users (id, name, email, password_hash, role, status, phone) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, name, email.toLowerCase().trim(), passwordHash, role, status, phone || '']
+    );
+
+    res.status(201).json({ message: 'User account created successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error creating user' });
+  }
+});
+
+// 3. Approve, Reject, or Change Status of User
 app.put('/api/admin/students/:id/status', authenticateToken, requireRole('admin'), async (req, res) => {
   const { id } = req.params;
   const { status } = req.body; // 'approved' or 'rejected' or 'pending'
@@ -245,18 +281,19 @@ app.put('/api/admin/students/:id/status', authenticateToken, requireRole('admin'
   try {
     const userCheck = await db.query('SELECT role FROM users WHERE id = $1', [id]);
     if (userCheck.rows.length === 0) {
-      return res.status(404).json({ message: 'Student not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
     
-    if (userCheck.rows[0].role !== 'student') {
-      return res.status(400).json({ message: 'Cannot modify non-student accounts' });
+    // Protect admin accounts from status modification
+    if (userCheck.rows[0].role === 'admin') {
+      return res.status(400).json({ message: 'System Admin accounts cannot be deactivated or rejected' });
     }
 
     await db.query('UPDATE users SET status = $1 WHERE id = $2', [status, id]);
-    res.json({ message: `Student account status updated to ${status}` });
+    res.json({ message: `Account status updated to ${status}` });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error updating student status' });
+    res.status(500).json({ message: 'Server error updating status' });
   }
 });
 
