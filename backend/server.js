@@ -254,40 +254,42 @@ app.put('/api/admin/students/:id/status', authenticateToken, requireRole('admin'
 // --- ADMIN ANALYTICS ROUTE ---
 app.get('/api/admin/analytics', authenticateToken, requireRole('admin'), async (req, res) => {
   try {
-    // Total Students
+    const supa = db.getSupabase();
+
+    if (supa) {
+      // Supabase SDK approach
+      const { count: totalStudents } = await supa.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student');
+      const { count: pendingStudents } = await supa.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student').eq('status', 'pending');
+      const { count: totalCourses } = await supa.from('courses').select('*', { count: 'exact', head: true });
+      const { count: totalEnrollments } = await supa.from('enrollments').select('*', { count: 'exact', head: true });
+      const { data: courses } = await supa.from('courses').select('id, title, category');
+      const { data: enrollments } = await supa.from('enrollments').select('course_id');
+
+      const coursesDistribution = (courses || []).map(c => ({
+        ...c,
+        enrollment_count: (enrollments || []).filter(e => e.course_id === c.id).length
+      })).sort((a, b) => b.enrollment_count - a.enrollment_count);
+
+      return res.json({ analytics: { totalStudents: totalStudents || 0, pendingStudents: pendingStudents || 0, totalCourses: totalCourses || 0, totalEnrollments: totalEnrollments || 0, coursesDistribution } });
+    }
+
+    // SQLite fallback
     const studentCountRes = await db.query("SELECT COUNT(*) as count FROM users WHERE role = 'student'");
-    const totalStudents = parseInt(studentCountRes.rows[0].count || 0);
-
-    // Pending Students
     const pendingCountRes = await db.query("SELECT COUNT(*) as count FROM users WHERE role = 'student' AND status = 'pending'");
-    const pendingStudents = parseInt(pendingCountRes.rows[0].count || 0);
-
-    // Total Courses
     const courseCountRes = await db.query("SELECT COUNT(*) as count FROM courses");
-    const totalCourses = parseInt(courseCountRes.rows[0].count || 0);
-
-    // Total Enrollments
     const enrollCountRes = await db.query("SELECT COUNT(*) as count FROM enrollments");
-    const totalEnrollments = parseInt(enrollCountRes.rows[0].count || 0);
+    const coursesRes = await db.query('SELECT id, title, category FROM courses');
+    const enrollsRes = await db.query('SELECT course_id FROM enrollments');
+    const allEnrolls = enrollsRes.rows;
+    const coursesDistribution = coursesRes.rows.map(c => ({ ...c, enrollment_count: allEnrolls.filter(e => e.course_id === c.id).length }));
 
-    // Enrollments per Course Distribution
-    const distributions = await db.query(
-      `SELECT c.id, c.title, c.category, COUNT(e.id) as enrollment_count
-       FROM courses c
-       LEFT JOIN enrollments e ON c.id = e.course_id
-       GROUP BY c.id, c.title, c.category
-       ORDER BY enrollment_count DESC`
-    );
-
-    res.json({
-      analytics: {
-        totalStudents,
-        pendingStudents,
-        totalCourses,
-        totalEnrollments,
-        coursesDistribution: distributions.rows
-      }
-    });
+    res.json({ analytics: {
+      totalStudents: parseInt(studentCountRes.rows[0].count || 0),
+      pendingStudents: parseInt(pendingCountRes.rows[0].count || 0),
+      totalCourses: parseInt(courseCountRes.rows[0].count || 0),
+      totalEnrollments: parseInt(enrollCountRes.rows[0].count || 0),
+      coursesDistribution
+    }});
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error retrieving analytics' });
@@ -314,75 +316,79 @@ app.get('/api/courses/:id', authenticateToken, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // Fetch Course details
-    const courseRes = await db.query('SELECT * FROM courses WHERE id = $1', [id]);
-    if (courseRes.rows.length === 0) {
-      return res.status(404).json({ message: 'Course not found' });
+    const supa = db.getSupabase();
+
+    if (supa) {
+      // Supabase SDK approach — no JOINs needed
+      const { data: courseData, error: courseErr } = await supa.from('courses').select('*').eq('id', id).single();
+      if (courseErr || !courseData) return res.status(404).json({ message: 'Course not found' });
+
+      let isEnrolled = req.user.role !== 'student';
+      if (req.user.role === 'student') {
+        const { data: enroll } = await supa.from('enrollments').select('id').eq('student_id', userId).eq('course_id', id);
+        isEnrolled = enroll && enroll.length > 0;
+      }
+
+      const { data: chapters } = await supa.from('chapters').select('*').eq('course_id', id).order('sort_order');
+      const chapterIds = (chapters || []).map(ch => ch.id);
+      const { data: lessons } = chapterIds.length > 0
+        ? await supa.from('lessons').select('*').in('chapter_id', chapterIds).order('sort_order')
+        : { data: [] };
+
+      let completedLessonIds = [];
+      if (req.user.role === 'student' && isEnrolled) {
+        const lessonIds = (lessons || []).map(l => l.id);
+        if (lessonIds.length > 0) {
+          const { data: comps } = await supa.from('lesson_completions').select('lesson_id').eq('student_id', userId).in('lesson_id', lessonIds);
+          completedLessonIds = (comps || []).map(c => c.lesson_id);
+        }
+      }
+
+      const chaptersWithLessons = (chapters || []).map(ch => ({
+        ...ch,
+        lessons: (lessons || []).filter(l => l.chapter_id === ch.id)
+      }));
+
+      return res.json({ course: courseData, isEnrolled, chapters: chaptersWithLessons, completedLessons: completedLessonIds });
     }
+
+    // SQLite fallback
+    const courseRes = await db.query('SELECT * FROM courses WHERE id = $1', [id]);
+    if (courseRes.rows.length === 0) return res.status(404).json({ message: 'Course not found' });
     const course = courseRes.rows[0];
 
-    // Check if enrolled (for students)
-    let isEnrolled = false;
+    let isEnrolled = req.user.role !== 'student';
     if (req.user.role === 'student') {
-      const enrollCheck = await db.query(
-        'SELECT * FROM enrollments WHERE student_id = $1 AND course_id = $2',
-        [userId, id]
-      );
+      const enrollCheck = await db.query('SELECT * FROM enrollments WHERE student_id = $1 AND course_id = $2', [userId, id]);
       isEnrolled = enrollCheck.rows.length > 0;
-    } else {
-      isEnrolled = true; // Admin has full access
     }
 
-    // Fetch Chapters
-    const chaptersRes = await db.query(
-      'SELECT * FROM chapters WHERE course_id = $1 ORDER BY sort_order ASC, title ASC',
-      [id]
-    );
+    const chaptersRes = await db.query('SELECT * FROM chapters WHERE course_id = $1 ORDER BY sort_order ASC', [id]);
     const chapters = chaptersRes.rows;
+    const chapterIds = chapters.map(ch => ch.id);
 
-    // Fetch Lessons for all chapters
-    const lessonsRes = await db.query(
-      `SELECT l.* FROM lessons l
-       JOIN chapters ch ON l.chapter_id = ch.id
-       WHERE ch.course_id = $1
-       ORDER BY l.sort_order ASC, l.title ASC`,
-      [id]
-    );
-    const lessons = lessonsRes.rows;
-
-    // Fetch completions if user is student
-    let completedLessonIds = [];
-    if (req.user.role === 'student' && isEnrolled) {
-      const completionsRes = await db.query(
-        `SELECT lesson_id FROM lesson_completions lc
-         JOIN lessons l ON lc.lesson_id = l.id
-         JOIN chapters ch ON l.chapter_id = ch.id
-         WHERE lc.student_id = $1 AND ch.course_id = $2`,
-        [userId, id]
-      );
-      completedLessonIds = completionsRes.rows.map(row => row.lesson_id);
+    let lessons = [];
+    if (chapterIds.length > 0) {
+      const lessonsRes = await db.query('SELECT * FROM lessons WHERE chapter_id IN (' + chapterIds.map((_, i) => '$' + (i + 1)).join(',') + ') ORDER BY sort_order ASC', chapterIds);
+      lessons = lessonsRes.rows;
     }
 
-    // Map lessons into chapters
-    const chaptersWithLessons = chapters.map(ch => {
-      return {
-        ...ch,
-        lessons: lessons.filter(l => l.chapter_id === ch.id)
-      };
-    });
+    let completedLessonIds = [];
+    if (req.user.role === 'student' && isEnrolled && lessons.length > 0) {
+      const lessonIds = lessons.map(l => l.id);
+      const compsRes = await db.query('SELECT lesson_id FROM lesson_completions WHERE student_id = $1 AND lesson_id IN (' + lessonIds.map((_, i) => '$' + (i + 2)).join(',') + ')', [userId, ...lessonIds]);
+      completedLessonIds = compsRes.rows.map(r => r.lesson_id);
+    }
 
-    res.json({
-      course,
-      isEnrolled,
-      chapters: chaptersWithLessons,
-      completedLessons: completedLessonIds
-    });
+    const chaptersWithLessons = chapters.map(ch => ({ ...ch, lessons: lessons.filter(l => l.chapter_id === ch.id) }));
+    res.json({ course, isEnrolled, chapters: chaptersWithLessons, completedLessons: completedLessonIds });
 
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error retrieving course details' });
   }
 });
+
 
 
 // --- ADMIN COURSE CRUD ---
@@ -633,50 +639,50 @@ app.get('/api/student/enrollments', authenticateToken, requireRole('student'), a
   const studentId = req.user.id;
 
   try {
-    // Get all enrolled courses
-    const enrollmentsRes = await db.query(
-      `SELECT e.id as enrollment_id, e.created_at as enrolled_at, c.* 
-       FROM enrollments e
-       JOIN courses c ON e.course_id = c.id
-       WHERE e.student_id = $1
-       ORDER BY e.created_at DESC`,
-      [studentId]
-    );
-    const enrollments = enrollmentsRes.rows;
+    const supa = db.getSupabase();
 
-    // For each enrollment, calculate total lessons and completed lessons
-    const enrichedEnrollments = [];
+    let enrollments, chapters, lessons, completions;
 
-    for (const enroll of enrollments) {
-      // Total lessons in this course
-      const lessonsCountRes = await db.query(
-        `SELECT COUNT(l.id) as count FROM lessons l
-         JOIN chapters ch ON l.chapter_id = ch.id
-         WHERE ch.course_id = $1`,
-        [enroll.id]
-      );
-      const totalLessons = parseInt(lessonsCountRes.rows[0].count || 0);
+    if (supa) {
+      // Supabase SDK approach
+      const { data: enrollData } = await supa.from('enrollments').select('id, created_at, course_id').eq('student_id', studentId).order('created_at', { ascending: false });
+      const { data: coursesData } = await supa.from('courses').select('*');
+      const { data: chaptersData } = await supa.from('chapters').select('id, course_id');
+      const { data: lessonsData } = await supa.from('lessons').select('id, chapter_id');
+      const { data: completionsData } = await supa.from('lesson_completions').select('lesson_id').eq('student_id', studentId);
 
-      // Completed lessons in this course
-      const completionsCountRes = await db.query(
-        `SELECT COUNT(lc.id) as count FROM lesson_completions lc
-         JOIN lessons l ON lc.lesson_id = l.id
-         JOIN chapters ch ON l.chapter_id = ch.id
-         WHERE lc.student_id = $1 AND ch.course_id = $2`,
-        [studentId, enroll.id]
-      );
-      const completedLessons = parseInt(completionsCountRes.rows[0].count || 0);
+      const completedIds = new Set((completionsData || []).map(c => c.lesson_id));
 
-      // Percentage calculation
-      const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
-
-      enrichedEnrollments.push({
-        ...enroll,
-        totalLessons,
-        completedLessons,
-        progress
+      const enrichedEnrollments = (enrollData || []).map(e => {
+        const course = (coursesData || []).find(c => c.id === e.course_id) || {};
+        const courseChapterIds = (chaptersData || []).filter(ch => ch.course_id === e.course_id).map(ch => ch.id);
+        const courseLessons = (lessonsData || []).filter(l => courseChapterIds.includes(l.chapter_id));
+        const totalLessons = courseLessons.length;
+        const completedLessons = courseLessons.filter(l => completedIds.has(l.id)).length;
+        const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+        return { enrollment_id: e.id, enrolled_at: e.created_at, ...course, totalLessons, completedLessons, progress };
       });
+
+      return res.json({ enrollments: enrichedEnrollments });
     }
+
+    // SQLite fallback — keep original logic
+    const enrollmentsRes = await db.query('SELECT id, created_at, course_id FROM enrollments WHERE student_id = $1 ORDER BY created_at DESC', [studentId]);
+    const coursesRes = await db.query('SELECT * FROM courses');
+    const chaptersRes = await db.query('SELECT id, course_id FROM chapters');
+    const lessonsRes = await db.query('SELECT id, chapter_id FROM lessons');
+    const completionsRes = await db.query('SELECT lesson_id FROM lesson_completions WHERE student_id = $1', [studentId]);
+    const completedIds = new Set(completionsRes.rows.map(c => c.lesson_id));
+
+    const enrichedEnrollments = enrollmentsRes.rows.map(e => {
+      const course = coursesRes.rows.find(c => c.id === e.course_id) || {};
+      const courseChapterIds = chaptersRes.rows.filter(ch => ch.course_id === e.course_id).map(ch => ch.id);
+      const courseLessons = lessonsRes.rows.filter(l => courseChapterIds.includes(l.chapter_id));
+      const totalLessons = courseLessons.length;
+      const completedLessons = courseLessons.filter(l => completedIds.has(l.id)).length;
+      const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+      return { enrollment_id: e.id, enrolled_at: e.created_at, ...course, totalLessons, completedLessons, progress };
+    });
 
     res.json({ enrollments: enrichedEnrollments });
   } catch (err) {
