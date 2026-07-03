@@ -16,10 +16,12 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+if (!process.env.VERCEL) {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadDir));
 }
-app.use('/uploads', express.static(uploadDir));
 
 // --- DATABASE SEEDING ---
 async function seedAdmin() {
@@ -806,7 +808,11 @@ app.post('/api/admin/upload-thumbnail', authenticateToken, requireRole('admin'),
       return res.json({ url: publicUrl });
     } else {
       // Local fallback
-      const localPath = path.join(__dirname, 'uploads', uniqueFileName);
+      const localDir = process.env.VERCEL ? '/tmp' : path.join(__dirname, 'uploads');
+      if (process.env.VERCEL && !fs.existsSync(localDir)) {
+        fs.mkdirSync(localDir, { recursive: true });
+      }
+      const localPath = path.join(localDir, uniqueFileName);
       fs.writeFileSync(localPath, buffer);
       
       const protocol = req.headers['x-forwarded-proto'] || req.protocol;
