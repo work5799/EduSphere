@@ -68,7 +68,26 @@ app.get('/api/admin/setup-db', async (req, res) => {
     res.json({ message: 'EduSphere Database successfully initialized and seeded in Supabase!' });
   } catch (err) {
     console.error('Error in setup-db endpoint:', err);
-    res.status(500).json({ error: err.message, stack: err.stack });
+    
+    // Mask and debug DATABASE_URL to identify the parsing issue
+    const dbUrl = process.env.DATABASE_URL || '';
+    const debugUrlInfo = {
+      exists: !!dbUrl,
+      length: dbUrl.length,
+      startsWith: dbUrl.substring(0, 30),
+      endsWith: dbUrl.substring(Math.max(0, dbUrl.length - 20)),
+      containsBrackets: dbUrl.includes('[') || dbUrl.includes(']'),
+      containsSpaces: dbUrl.includes(' '),
+      containsQuotes: dbUrl.includes('"') || dbUrl.includes("'") || dbUrl.includes('`'),
+      containsDoubleEquals: dbUrl.includes('=='),
+      containsPrefixDbUrl: dbUrl.toUpperCase().startsWith('DATABASE_URL')
+    };
+
+    res.status(500).json({ 
+      error: err.message, 
+      stack: err.stack,
+      debugUrlInfo
+    });
   }
 });
 
