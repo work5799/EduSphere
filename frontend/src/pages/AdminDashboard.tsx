@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { 
   GraduationCap, LogOut, Users, BookOpen, UserCheck, 
@@ -891,18 +891,17 @@ export default function AdminDashboard() {
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
                             </div>
-                 
-           </div>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               )}
-            </div>
+            </>
           )}
         </main>
-      )}
+      </div>
     </div>
   );
 }
