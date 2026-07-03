@@ -8,18 +8,36 @@ let pgPool = null;
 let sqliteDb = null;
 
 // Initialize connection
-if (process.env.DATABASE_URL) {
+// Prefer individual DB params (avoids URL parsing issues with special chars/dots)
+const hasIndividualParams = process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD;
+
+if (hasIndividualParams || process.env.DATABASE_URL) {
   const { Pool } = require('pg');
-  // Trim any trailing newlines or spaces that Vercel env vars may introduce
-  const dbUrl = process.env.DATABASE_URL.trim();
-  pgPool = new Pool({
-    connectionString: dbUrl,
-    ssl: dbUrl.includes('supabase') || process.env.DB_SSL === 'true' 
-      ? { rejectUnauthorized: false } 
-      : false
-  });
+  
+  let poolConfig;
+  if (hasIndividualParams) {
+    // Use individual params - avoids URL parsing issues entirely
+    poolConfig = {
+      host: process.env.DB_HOST.trim(),
+      user: process.env.DB_USER.trim(),
+      password: process.env.DB_PASSWORD.trim(),
+      port: parseInt(process.env.DB_PORT || '6543'),
+      database: process.env.DB_NAME || 'postgres',
+      ssl: { rejectUnauthorized: false }
+    };
+    console.log('Database Client: PostgreSQL (Individual params, host:', process.env.DB_HOST, ')');
+  } else {
+    // Fallback: use DATABASE_URL (trim to remove any trailing newlines)
+    const dbUrl = process.env.DATABASE_URL.trim();
+    poolConfig = {
+      connectionString: dbUrl,
+      ssl: { rejectUnauthorized: false }
+    };
+    console.log('Database Client: PostgreSQL (Connection string)');
+  }
+  
+  pgPool = new Pool(poolConfig);
   dbType = 'postgres';
-  console.log('Database Client: PostgreSQL (Connected to Supabase/Remote)');
 } else {
   const sqlite3 = require('sqlite3').verbose();
   const dbPath = path.join(__dirname, 'edusphere.db');
