@@ -164,7 +164,7 @@ export function parseDriveLink(link: string): { type: 'embed' | 'file'; id: stri
   return {
     type: 'embed',
     id: fileId,
-    embedUrl: `https://drive.google.com/file/d/${fileId}/preview`
+    embedUrl: `https://drive.google.com/video/d/${fileId}/preview`
   };
 }
 
