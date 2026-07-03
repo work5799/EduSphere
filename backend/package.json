@@ -14,7 +14,8 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.12.0",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "@supabase/supabase-js": "^2.43.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

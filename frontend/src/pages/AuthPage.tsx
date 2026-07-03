@@ -254,7 +254,7 @@ export default function AuthPage() {
           {isLogin && (
             <div className="mt-6 text-center text-xs text-slate-500 leading-relaxed border-t border-slate-900 pt-6">
               <span className="font-semibold text-indigo-400">Admin Account Seed:</span><br />
-              Email: <code className="text-slate-400">admin@edusphere.com</code> | Password: <code className="text-slate-400">adminpassword</code>
+              Email: <code className="text-slate-400">rayhan5799@gmail.com</code> | Password: <code className="text-slate-400">Rayhan5799@#</code>
             </div>
           )}
         </div>

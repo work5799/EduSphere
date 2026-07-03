@@ -15,12 +15,12 @@ app.use(express.json());
 // --- DATABASE SEEDING ---
 async function seedAdmin() {
   try {
-    const adminEmail = 'admin@edusphere.com';
+    const adminEmail = 'rayhan5799@gmail.com';
     const result = await db.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
     
     if (result.rows.length === 0) {
       const adminId = db.generateId();
-      const passwordHash = await bcrypt.hash('adminpassword', 10);
+      const passwordHash = await bcrypt.hash('Rayhan5799@#', 10);
       
       await db.query(
         `INSERT INTO users (id, name, email, password_hash, role, status, phone) 
@@ -28,8 +28,8 @@ async function seedAdmin() {
         [adminId, 'System Admin', adminEmail, passwordHash, 'admin', 'approved', '123-456-7890']
       );
       console.log('Seeded default Admin account:');
-      console.log('  Email: admin@edusphere.com');
-      console.log('  Password: adminpassword');
+      console.log('  Email: rayhan5799@gmail.com');
+      console.log('  Password: Rayhan5799@#');
     }
   } catch (err) {
     console.error('Error seeding admin account:', err);
