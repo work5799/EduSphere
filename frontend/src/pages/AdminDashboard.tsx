@@ -976,72 +976,6 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
-                  {/* User Account Modal */}
-                  {showUserModal && (
-                    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-6">
-                      <div className="rounded-2xl border border-white/10 w-full max-w-lg p-7 shadow-2xl relative"
-                        style={{background:'linear-gradient(135deg, #111122 0%, #0f0f1e 100%)'}}>
-                        <button onClick={() => setShowUserModal(false)}
-                          className="absolute top-5 right-5 text-slate-500 hover:text-white transition cursor-pointer">
-                          <X className="h-5 w-5" />
-                        </button>
-                        <h3 className="text-lg font-black text-white mb-6">
-                          ➕ Create New User Account
-                        </h3>
-                        <form onSubmit={handleUserSubmit} className="space-y-4">
-                          <div>
-                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Name *</label>
-                            <input type="text" required value={newUserName} onChange={e => setNewUserName(e.target.value)}
-                              placeholder="e.g. John Doe"
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Email Address *</label>
-                            <input type="email" required value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)}
-                              placeholder="e.g. john@example.com"
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Role *</label>
-                              <select value={newUserRole} onChange={e => setNewUserRole(e.target.value as any)}
-                                className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white">
-                                <option value="student">Student</option>
-                                <option value="admin">System Admin</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Phone Number</label>
-                              <input type="text" value={newUserPhone} onChange={e => setNewUserPhone(e.target.value)}
-                                placeholder="e.g. +8801700000000"
-                                className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Password *</label>
-                            <input type="password" required value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)}
-                              placeholder="Minimum 6 characters"
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
-                            />
-                          </div>
-                          <div className="flex gap-3 pt-2">
-                            <button type="submit"
-                              className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl cursor-pointer transition">
-                              Create Account
-                            </button>
-                            <button type="button" onClick={() => setShowUserModal(false)}
-                              className="bg-slate-800 hover:bg-slate-700 text-slate-400 py-3 px-5 rounded-xl cursor-pointer transition">
-                              Cancel
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-                  )}
-
                   {courses.length === 0 ? (
                     <div className="text-center py-24 rounded-2xl border border-dashed border-white/8">
                       <BookOpen className="h-10 w-10 mx-auto mb-4 text-slate-700" />
@@ -1101,6 +1035,72 @@ export default function AdminDashboard() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* User Account Modal */}
+              {showUserModal && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-6">
+                  <div className="rounded-2xl border border-white/10 w-full max-w-lg p-7 shadow-2xl relative"
+                    style={{background:'linear-gradient(135deg, #111122 0%, #0f0f1e 100%)'}}>
+                    <button onClick={() => setShowUserModal(false)}
+                      className="absolute top-5 right-5 text-slate-500 hover:text-white transition cursor-pointer">
+                      <X className="h-5 w-5" />
+                    </button>
+                    <h3 className="text-lg font-black text-white mb-6">
+                      ➕ Create New User Account
+                    </h3>
+                    <form onSubmit={handleUserSubmit} className="space-y-4">
+                      <div>
+                        <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Name *</label>
+                        <input type="text" required value={newUserName} onChange={e => setNewUserName(e.target.value)}
+                          placeholder="e.g. John Doe"
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Email Address *</label>
+                        <input type="email" required value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)}
+                          placeholder="e.g. john@example.com"
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Role *</label>
+                          <select value={newUserRole} onChange={e => setNewUserRole(e.target.value as any)}
+                            className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white">
+                            <option value="student">Student</option>
+                            <option value="admin">System Admin</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Phone Number</label>
+                          <input type="text" value={newUserPhone} onChange={e => setNewUserPhone(e.target.value)}
+                            placeholder="e.g. +8801700000000"
+                            className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Password *</label>
+                        <input type="password" required value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)}
+                          placeholder="Minimum 6 characters"
+                          className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
+                        />
+                      </div>
+                      <div className="flex gap-3 pt-2">
+                        <button type="submit"
+                          className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl cursor-pointer transition">
+                          Create Account
+                        </button>
+                        <button type="button" onClick={() => setShowUserModal(false)}
+                          className="bg-slate-800 hover:bg-slate-700 text-slate-400 py-3 px-5 rounded-xl cursor-pointer transition">
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               )}
             </>
