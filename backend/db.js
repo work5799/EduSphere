@@ -10,9 +10,11 @@ let sqliteDb = null;
 // Initialize connection
 if (process.env.DATABASE_URL) {
   const { Pool } = require('pg');
+  // Trim any trailing newlines or spaces that Vercel env vars may introduce
+  const dbUrl = process.env.DATABASE_URL.trim();
   pgPool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL.includes('supabase') || process.env.DB_SSL === 'true' 
+    connectionString: dbUrl,
+    ssl: dbUrl.includes('supabase') || process.env.DB_SSL === 'true' 
       ? { rejectUnauthorized: false } 
       : false
   });
