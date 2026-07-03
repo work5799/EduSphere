@@ -563,9 +563,9 @@ export default function AdminDashboard() {
                                 <option value="pdf">📄 PDF</option>
                               </select>
                             </div>
-                            <input type="text" value={lessonLink} onChange={e => setLessonLink(e.target.value)}
-                              placeholder="Google Drive shareable link..."
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-2.5 text-xs text-white"
+                            <textarea rows={3} value={lessonLink} onChange={e => setLessonLink(e.target.value)}
+                              placeholder="Google Drive link(s)... (If you want to add multiple files/PDFs, paste each Google Drive URL on a new line)"
+                              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-2.5 text-xs text-white resize-none"
                             />
                             <div className="flex gap-2 justify-end">
                               <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg cursor-pointer text-xs">Save</button>

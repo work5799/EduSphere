@@ -174,7 +174,11 @@ export default function StudentCourseViewer() {
     }
   };
 
-  const parsedDrive = activeLesson ? parseDriveLink(activeLesson.drive_link, activeLesson.type) : null;
+  const allLinks = activeLesson && activeLesson.drive_link 
+    ? activeLesson.drive_link.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean) 
+    : [];
+  const mainLink = allLinks[0] || '';
+  const parsedDrive = mainLink ? parseDriveLink(mainLink, activeLesson?.type) : null;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-slate-100 flex flex-col lg:flex-row overflow-hidden h-screen">
@@ -327,10 +331,10 @@ export default function StudentCourseViewer() {
                     className="border-0"
                     title={activeLesson.title}
                   />
-                ) : activeLesson.drive_link ? (
+                ) : mainLink ? (
                   // General link fallback if parser didn't catch it
                   <iframe
-                    src={activeLesson.drive_link}
+                    src={mainLink}
                     width="100%"
                     height="100%"
                     allow="autoplay; encrypted-media"
@@ -384,17 +388,31 @@ export default function StudentCourseViewer() {
                     If the media fails to load, ensure you are logged into your Google account in this browser window, 
                     or verify the administrator has set the Drive file permissions to "Anyone with the link can view".
                   </p>
-                  {activeLesson.drive_link && (
-                    <div className="pt-4 border-t border-white/5">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">Source Link:</span>
-                      <a 
-                        href={activeLesson.drive_link} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="text-indigo-400 hover:underline break-all"
-                      >
-                        {activeLesson.drive_link}
-                      </a>
+                  {allLinks.length > 0 && (
+                    <div className="pt-5 border-t border-white/5 space-y-3">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                        Class Materials / PDF Documents:
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {allLinks.map((link, idx) => {
+                          return (
+                            <a 
+                              key={idx}
+                              href={link} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-indigo-600/10 hover:text-white border border-white/5 hover:border-indigo-500/20 text-indigo-400 transition font-bold"
+                            >
+                              <FileText className="h-4 w-4 text-indigo-400 flex-shrink-0" />
+                              <div className="flex-grow min-w-0 text-left">
+                                <span className="text-xs text-slate-200 block truncate font-black">Attachment #{idx + 1}</span>
+                                <span className="text-[10px] text-slate-500 font-medium block truncate mt-0.5">{link}</span>
+                              </div>
+                              <span className="text-[10px] bg-indigo-500/10 text-indigo-300 font-black px-2.5 py-1 rounded-lg border border-indigo-500/20 whitespace-nowrap">Open</span>
+                            </a>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
