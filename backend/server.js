@@ -36,9 +36,40 @@ async function seedAdmin() {
   }
 }
 
-// Initialize database and start seeding
-db.initDb().then(() => {
-  seedAdmin();
+// Initialize database automatically in local development
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  db.initDb().then(() => {
+    seedAdmin();
+  });
+}
+
+// Setup / Initialize Database endpoint for Vercel Serverless
+app.get('/api/admin/setup-db', async (req, res) => {
+  try {
+    console.log('Initializing database from Web endpoint...');
+    await db.initDb();
+    
+    // Seed Admin account
+    const adminEmail = 'rayhan5799@gmail.com';
+    const check = await db.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
+    
+    if (check.rows.length === 0) {
+      const adminId = db.generateId();
+      const passwordHash = await bcrypt.hash('Rayhan5799@#', 10);
+      
+      await db.query(
+        `INSERT INTO users (id, name, email, password_hash, role, status, phone) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [adminId, 'System Admin', adminEmail, passwordHash, 'admin', 'approved', '123-456-7890']
+      );
+      console.log('Admin account seeded successfully via Web.');
+    }
+    
+    res.json({ message: 'EduSphere Database successfully initialized and seeded in Supabase!' });
+  } catch (err) {
+    console.error('Error in setup-db endpoint:', err);
+    res.status(500).json({ error: err.message, stack: err.stack });
+  }
 });
 
 // --- AUTHENTICATION ROUTES ---
