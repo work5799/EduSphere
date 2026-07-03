@@ -376,11 +376,14 @@ export default function AdminDashboard() {
           ].map(item => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id as any)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+              onClick={() => {
+                setActiveOutlineCourse(null);
+                setActiveTab(item.id as any);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer border ${
                 activeTab === item.id
-                  ? 'bg-gradient-to-r from-indigo-600/30 to-purple-600/20 text-white border border-indigo-500/30 shadow-lg shadow-indigo-500/10'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  ? 'bg-gradient-to-r from-indigo-600/30 to-purple-600/20 text-white border-indigo-500/30 shadow-lg shadow-indigo-500/10'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border-transparent'
               }`}
             >
               <item.icon className={`h-4 w-4 ${activeTab === item.id ? 'text-indigo-400' : ''}`} />
@@ -436,8 +439,8 @@ export default function AdminDashboard() {
           {/* Mobile nav */}
           <div className="flex items-center gap-2 lg:hidden">
             {(['overview','students','courses'] as const).map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${activeTab === tab ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-400'}`}>
+              <button key={tab} onClick={() => { setActiveOutlineCourse(null); setActiveTab(tab); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition border ${activeTab === tab ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white/5 text-slate-400 border-transparent'}`}>
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
