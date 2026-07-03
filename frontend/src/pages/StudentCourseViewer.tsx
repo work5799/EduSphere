@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, parseDriveLink } from '../utils/api';
 import { 
-  GraduationCap, ArrowLeft, ChevronDown, ChevronRight, Play, FileText, 
-  Volume2, CheckSquare, Square, Menu, X, CheckCircle2, ChevronLeft 
+  ArrowLeft, ChevronDown, ChevronRight, Play, FileText, 
+  Volume2, CheckSquare, Square, Menu, X, CheckCircle2, BookOpen
 } from 'lucide-react';
 
 interface Lesson {

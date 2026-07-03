@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api, getToken, getCurrentUser, removeToken } from '../utils/api';
 import { Search, BookOpen, GraduationCap, ChevronRight, LogOut, LayoutDashboard } from 'lucide-react';

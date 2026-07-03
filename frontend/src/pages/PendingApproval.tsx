@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, getCurrentUser, setCurrentUser, removeToken } from '../utils/api';
 import { GraduationCap, Clock, RefreshCw, LogOut } from 'lucide-react';
 

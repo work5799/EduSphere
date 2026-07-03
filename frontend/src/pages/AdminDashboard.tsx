@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { 
@@ -226,8 +226,10 @@ export default function AdminDashboard() {
       } else {
         // Editing
         const chId = showChapterFormFor;
-        const currentCh = outlineChapters.find(ch => ch.id === chId);
-        await api.updateChapter(chId, { title: chapterTitle, sort_order: currentCh?.sort_order || 0 });
+        if (chId) {
+          const currentCh = outlineChapters.find(ch => ch.id === chId);
+          await api.updateChapter(chId, { title: chapterTitle, sort_order: currentCh?.sort_order || 0 });
+        }
       }
 
       setChapterTitle('');
@@ -289,7 +291,7 @@ export default function AdminDashboard() {
   const handleEditLessonSetup = (chapterId: string, lesson: Lesson) => {
     setLessonTitle(lesson.title);
     setLessonType(lesson.type);
-    setLessonLink(les => lesson.drive_link);
+    setLessonLink(lesson.drive_link);
     setShowLessonFormFor({ chapterId, lessonId: lesson.id });
   };
 
