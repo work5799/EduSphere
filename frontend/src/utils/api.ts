@@ -132,7 +132,7 @@ export const api = {
 };
 
 // Parse Google Drive Link helper
-export function parseDriveLink(link: string, mediaType?: string): { type: 'embed' | 'file'; id: string; embedUrl: string } | null {
+export function parseDriveLink(link: string): { type: 'embed' | 'file'; id: string; embedUrl: string } | null {
   if (!link) return null;
   
   // Clean string
@@ -161,11 +161,10 @@ export function parseDriveLink(link: string, mediaType?: string): { type: 'embed
   
   if (!fileId) return null;
   
-  const pathType = mediaType === 'video' ? 'video' : 'file';
   return {
     type: 'embed',
     id: fileId,
-    embedUrl: `https://drive.google.com/${pathType}/d/${fileId}/preview`
+    embedUrl: `https://drive.google.com/file/d/${fileId}/preview`
   };
 }
 
