@@ -78,7 +78,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center py-12 px-6 relative overflow-hidden">
+    <div className="h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center py-4 px-6 relative overflow-y-auto overflow-x-hidden">
       {/* Background gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.06),transparent_50%)]" />
       <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-indigo-500/5 blur-3xl" />
