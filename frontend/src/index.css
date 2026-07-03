@@ -41,3 +41,13 @@
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(99, 102, 241, 0.15); /* indigo-500/15 */
 }
+
+/* Custom browser autofill override styling */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #020617 inset !important; /* slate-950 background */
+  -webkit-text-fill-color: #f8fafc !important; /* slate-50 text color */
+  transition: background-color 5000s ease-in-out 0s;
+}
