@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { api, removeToken, getCurrentUser } from '../utils/api';
+import { api, removeToken, getCurrentUser, getDirectImageUrl } from '../utils/api';
 import { GraduationCap, LogOut, BookOpen, Clock, ChevronRight, CheckCircle2 } from 'lucide-react';
 
 interface EnrolledCourse {
@@ -160,7 +160,7 @@ export default function StudentDashboard() {
                       <div className="aspect-video relative overflow-hidden bg-slate-950">
                         {course.thumbnail ? (
                           <img 
-                            src={course.thumbnail} 
+                            src={getDirectImageUrl(course.thumbnail)} 
                             alt={course.title}
                             className="object-cover w-full h-full"
                             onError={(e) => {
@@ -241,7 +241,7 @@ export default function StudentDashboard() {
                       <div className="aspect-video relative overflow-hidden bg-slate-950">
                         {course.thumbnail ? (
                           <img 
-                            src={course.thumbnail} 
+                            src={getDirectImageUrl(course.thumbnail)} 
                             alt={course.title}
                             className="object-cover w-full h-full opacity-80"
                             onError={(e) => {

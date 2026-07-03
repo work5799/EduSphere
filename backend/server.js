@@ -4,6 +4,8 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('./db');
+const path = require('path');
+const fs = require('fs');
 const { authenticateToken, requireRole, JWT_SECRET } = require('./middleware/auth');
 require('dotenv').config();
 
@@ -11,7 +13,13 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadDir));
 
 // --- DATABASE SEEDING ---
 async function seedAdmin() {
@@ -757,6 +765,58 @@ app.delete('/api/student/lessons/:lessonId/complete', authenticateToken, require
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error removing lesson completion' });
+  }
+});
+
+
+// --- ADMIN THUMBNAIL UPLOAD ---
+app.post('/api/admin/upload-thumbnail', authenticateToken, requireRole('admin'), async (req, res) => {
+  const { base64Image, fileName, mimeType } = req.body;
+
+  if (!base64Image) {
+    return res.status(400).json({ message: 'No image data provided' });
+  }
+
+  try {
+    const supa = db.getSupabase();
+    const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+    const extension = mimeType ? mimeType.split('/')[1] : 'png';
+    const uniqueFileName = `${db.generateId()}.${extension}`;
+
+    if (supa) {
+      // Ensure thumbnails bucket exists
+      await supa.storage.createBucket('thumbnails', { public: true }).catch(() => {});
+
+      // Upload file to Supabase Storage
+      const { data, error } = await supa.storage
+        .from('thumbnails')
+        .upload(uniqueFileName, buffer, {
+          contentType: mimeType || 'image/png',
+          upsert: true
+        });
+
+      if (error) {
+        console.error('Supabase upload error:', error);
+        return res.status(500).json({ message: 'Supabase storage upload failed: ' + error.message });
+      }
+
+      // Get Public URL
+      const { data: { publicUrl } } = supa.storage.from('thumbnails').getPublicUrl(uniqueFileName);
+      return res.json({ url: publicUrl });
+    } else {
+      // Local fallback
+      const localPath = path.join(__dirname, 'uploads', uniqueFileName);
+      fs.writeFileSync(localPath, buffer);
+      
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      const host = req.get('host');
+      const url = `${protocol}://${host}/uploads/${uniqueFileName}`;
+      return res.json({ url });
+    }
+  } catch (err) {
+    console.error('Upload handler error:', err);
+    res.status(500).json({ message: 'Internal server error uploading image' });
   }
 });
 

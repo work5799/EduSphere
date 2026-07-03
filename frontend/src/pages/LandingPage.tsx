@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { api, getToken, getCurrentUser, removeToken } from '../utils/api';
+import { api, getToken, getCurrentUser, removeToken, getDirectImageUrl } from '../utils/api';
 import { Search, BookOpen, GraduationCap, ChevronRight, LogOut, LayoutDashboard } from 'lucide-react';
 
 interface Course {
@@ -204,7 +204,7 @@ export default function LandingPage() {
                   <div className="aspect-video relative overflow-hidden bg-slate-950">
                     {course.thumbnail ? (
                       <img 
-                        src={course.thumbnail} 
+                        src={getDirectImageUrl(course.thumbnail)} 
                         alt={course.title}
                         className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => {

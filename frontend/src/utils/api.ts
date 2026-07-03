@@ -94,6 +94,9 @@ export const api = {
   deleteCourse: (courseId: string) => 
     request(`/admin/courses/${courseId}`, { method: 'DELETE' }),
 
+  uploadThumbnail: (base64Image: string, fileName: string, mimeType: string) =>
+    request('/admin/upload-thumbnail', { method: 'POST', body: JSON.stringify({ base64Image, fileName, mimeType }) }),
+
   // Chapters
   createChapter: (courseId: string, chapterData: any) => 
     request(`/admin/courses/${courseId}/chapters`, { method: 'POST', body: JSON.stringify(chapterData) }),
@@ -164,3 +167,34 @@ export function parseDriveLink(link: string): { type: 'embed' | 'file'; id: stri
     embedUrl: `https://drive.google.com/file/d/${fileId}/preview`
   };
 }
+
+export function getDirectImageUrl(url: string): string {
+  if (!url) return '';
+  const cleanLink = url.trim();
+  
+  const dFormat = cleanLink.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  const idFormat = cleanLink.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  const foldersFormat = cleanLink.match(/\/open\?id=([a-zA-Z0-9_-]+)/);
+  
+  let fileId = '';
+  if (dFormat && dFormat[1]) {
+    fileId = dFormat[1];
+  } else if (idFormat && idFormat[1]) {
+    fileId = idFormat[1];
+  } else if (foldersFormat && foldersFormat[1]) {
+    fileId = foldersFormat[1];
+  }
+
+  if (fileId) {
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+  }
+  
+  if (cleanLink.startsWith('/uploads/') || cleanLink.startsWith('uploads/')) {
+    const relativePath = cleanLink.startsWith('/') ? cleanLink : `/${cleanLink}`;
+    const base = API_BASE_URL.replace(/\/api$/, '');
+    return `${base}${relativePath}`;
+  }
+
+  return cleanLink;
+}
+

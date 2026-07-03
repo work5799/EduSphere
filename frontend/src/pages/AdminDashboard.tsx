@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../utils/api';
+import { api, getDirectImageUrl } from '../utils/api';
 import { 
   GraduationCap, LogOut, Users, BookOpen, UserCheck, 
   BarChart3, Plus, Edit2, Trash2, Check, X, FileText, 
-  Play, Volume2, ArrowLeft, RefreshCw, FolderPlus, FilePlus 
+  Play, Volume2, ArrowLeft, RefreshCw, FolderPlus, FilePlus,
+  Loader
 } from 'lucide-react';
 
 interface Student {
@@ -81,6 +82,7 @@ export default function AdminDashboard() {
   const [courseThumbnail, setCourseThumbnail] = useState('');
   const [courseCategory, setCourseCategory] = useState('');
   const [coursePrice, setCoursePrice] = useState(0);
+  const [uploading, setUploading] = useState(false);
 
   // Outline builder form states
   const [showChapterFormFor, setShowChapterFormFor] = useState<string | null>(null); // 'new' or chapterId for editing
@@ -141,6 +143,35 @@ export default function AdminDashboard() {
       setAnalytics(analyticData.analytics);
     } catch (err: any) {
       alert(err.message || 'Failed to update student status.');
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        try {
+          const res = await api.uploadThumbnail(base64, file.name, file.type);
+          setCourseThumbnail(res.url);
+        } catch (err: any) {
+          alert(err.message || 'Image upload failed.');
+        } finally {
+          setUploading(false);
+        }
+      };
+      reader.onerror = () => {
+        alert('File reading failed.');
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      alert(err.message || 'Image upload failed.');
+      setUploading(false);
     }
   };
 
@@ -809,11 +840,38 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                           <div>
-                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Thumbnail URL</label>
-                            <input type="url" value={courseThumbnail} onChange={e => setCourseThumbnail(e.target.value)}
-                              placeholder="https://images.unsplash.com/..."
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
-                            />
+                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Thumbnail</label>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                              <input type="text" value={courseThumbnail} onChange={e => setCourseThumbnail(e.target.value)}
+                                placeholder="Paste Google Drive or Image URL..."
+                                className="flex-1 bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white"
+                              />
+                              <div className="relative">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  id="thumbnail-upload"
+                                  className="hidden"
+                                  onChange={handleImageUpload}
+                                />
+                                <label
+                                  htmlFor="thumbnail-upload"
+                                  className="flex items-center justify-center gap-1.5 h-[46px] px-4 rounded-xl border border-white/10 hover:border-indigo-500 hover:text-white text-slate-300 font-bold text-xs bg-slate-900 hover:bg-slate-850 cursor-pointer transition whitespace-nowrap"
+                                >
+                                  {uploading ? <Loader className="h-4 w-4 animate-spin text-indigo-400" /> : <FolderPlus className="h-4 w-4" />}
+                                  <span>Choose File</span>
+                                </label>
+                              </div>
+                            </div>
+                            {courseThumbnail && (
+                              <div className="mt-3 aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-850 relative group">
+                                <img src={getDirectImageUrl(courseThumbnail)} alt="Thumbnail Preview" className="object-cover w-full h-full" />
+                                <button type="button" onClick={() => setCourseThumbnail('')}
+                                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 hover:bg-rose-600 text-white transition opacity-0 group-hover:opacity-100 cursor-pointer">
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )}
                           </div>
                           <div>
                             <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Description</label>
@@ -849,7 +907,7 @@ export default function AdminDashboard() {
                           style={{background:'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)'}}>
                           <div className="aspect-video relative overflow-hidden bg-slate-950/50">
                             {course.thumbnail ? (
-                              <img src={course.thumbnail} alt={course.title}
+                              <img src={getDirectImageUrl(course.thumbnail)} alt={course.title}
                                 className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
                                 onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=800'; }}
                               />
