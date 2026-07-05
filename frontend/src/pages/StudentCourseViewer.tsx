@@ -4,7 +4,7 @@ import { api, getCurrentUser, getVideoProxyUrl } from '../utils/api';
 import { 
   ArrowLeft, ChevronDown, ChevronRight, Play, FileText, 
   Volume2, CheckSquare, Square, Menu, X, CheckCircle2, BookOpen,
-  HelpCircle, Info, ChevronLeft, Award
+  HelpCircle, Info, ChevronLeft, Award, RotateCw
 } from 'lucide-react';
 
 interface Lesson {
@@ -37,12 +37,14 @@ interface Course {
 interface ProtectedPlayerProps {
   src: string;
   title: string;
+  rotation?: number;
 }
 
-function ProtectedPlayer({ src, title }: ProtectedPlayerProps) {
+function ProtectedPlayer({ src, title, rotation = 0 }: ProtectedPlayerProps) {
+  const isRotatedSide = rotation === 90 || rotation === 270;
   return (
     <div
-      style={{ position: 'absolute', inset: 0, background: '#000' }}
+      style={{ position: 'absolute', inset: 0, background: '#000', overflow: 'hidden' }}
       onContextMenu={(e) => e.preventDefault()}
     >
       <iframe
@@ -58,6 +60,9 @@ function ProtectedPlayer({ src, title }: ProtectedPlayerProps) {
           height: '100%',
           border: 'none',
           display: 'block',
+          transform: `rotate(${rotation}deg) ${isRotatedSide ? 'scale(0.65)' : ''}`,
+          transformOrigin: 'center center',
+          transition: 'transform 0.3s ease',
         }}
       />
       {/* Top overlay blocker to block Google Drive / YouTube header controls (Pop-out, share, title links) */}
@@ -119,6 +124,7 @@ export default function StudentCourseViewer() {
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [activeInfoTab, setActiveInfoTab] = useState<'notes' | 'resources' | 'help'>('notes');
+  const [pdfRotation, setPdfRotation] = useState<number>(0);
   
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -202,6 +208,7 @@ export default function StudentCourseViewer() {
         const firstChWithLessons = sortedChapters.find((ch: Chapter) => ch.lessons && ch.lessons.length > 0);
         if (firstChWithLessons && firstChWithLessons.lessons.length > 0) {
           setActiveLesson(firstChWithLessons.lessons[0]);
+          setPdfRotation(0); // Reset rotation
           // Expand only this chapter that has the active lesson
           expandMap[firstChWithLessons.id] = true;
         }
@@ -225,6 +232,7 @@ export default function StudentCourseViewer() {
 
   const handleLessonSelect = (lesson: Lesson) => {
     setActiveLesson(lesson);
+    setPdfRotation(0); // Reset rotation on lesson change
     // Close sidebar on mobile
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
@@ -489,6 +497,16 @@ export default function StudentCourseViewer() {
               
               {/* Navigation controls */}
               <div className="flex items-center gap-2">
+                {activeLesson.type === 'pdf' && (
+                  <button
+                    onClick={() => setPdfRotation(prev => (prev + 90) % 360)}
+                    className="flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl border border-indigo-500/20 hover:border-indigo-500/50 text-indigo-400 hover:text-indigo-300 transition text-xs font-bold bg-indigo-500/5 cursor-pointer mr-2"
+                    title="Rotate PDF 90 degrees"
+                  >
+                    <RotateCw className="h-3.5 w-3.5" />
+                    <span>Rotate</span>
+                  </button>
+                )}
                 <button
                   disabled={!prevLesson}
                   onClick={() => setActiveLesson(prevLesson)}
@@ -514,7 +532,7 @@ export default function StudentCourseViewer() {
                 activeLesson.type === 'pdf' ? 'h-[75vh] min-h-[555px]' : 'aspect-video'
               }`}>
                 {proxyUrl ? (
-                  <ProtectedPlayer src={proxyUrl} title={activeLesson.title} />
+                  <ProtectedPlayer src={proxyUrl} title={activeLesson.title} rotation={pdfRotation} />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 p-6 text-center">
                     <FileText className="h-12 w-12 text-slate-700 mb-3 animate-pulse" />
