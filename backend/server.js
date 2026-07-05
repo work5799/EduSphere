@@ -436,19 +436,54 @@ app.get('/api/video-proxy/:lessonId', async (req, res) => {
 
     if (!driveLink) return res.status(404).send('<h3>No video link found</h3>');
 
-    // Build the embed URL from the stored drive link
-    let embedUrl = driveLink.trim().split(/\r?\n/)[0].trim();
+    // Build URL from stored link (take first line only)
+    let rawUrl = driveLink.trim().split(/\r?\n/)[0].trim();
+    let embedUrl = rawUrl;
+    let sourceType = 'embed'; // 'embed' | 'external'
+    let sourceLabel = rawUrl;
 
-    // Convert Google Drive view/share links to embed
-    const driveMatch = embedUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    // Google Drive file/d/ link → preview embed
+    const driveMatch = rawUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
     if (driveMatch) {
       embedUrl = `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+      sourceType = 'embed';
+      sourceLabel = 'Google Drive Video';
     }
 
-    // Convert YouTube watch links to embed
-    const ytMatch = embedUrl.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/);
+    // YouTube watch or short link → embed
+    const ytMatch = rawUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/))([a-zA-Z0-9_-]{11})/);
     if (ytMatch) {
       embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}?modestbranding=1&rel=0&showinfo=0&controls=1`;
+      sourceType = 'embed';
+      sourceLabel = 'YouTube Video';
+    }
+
+    // YouTube already in embed format
+    if (rawUrl.includes('youtube.com/embed/') || rawUrl.includes('youtube-nocookie.com/embed/')) {
+      embedUrl = rawUrl;
+      sourceType = 'embed';
+      sourceLabel = 'YouTube Video';
+    }
+
+    // Google Drive already in preview/embed format
+    if (rawUrl.includes('drive.google.com') && (rawUrl.includes('/preview') || rawUrl.includes('/embed'))) {
+      embedUrl = rawUrl;
+      sourceType = 'embed';
+      sourceLabel = 'Google Drive Video';
+    }
+
+    // Facebook — cannot be iframe embedded, show external link card
+    if (rawUrl.includes('facebook.com') || rawUrl.includes('fb.com') || rawUrl.includes('fb.watch')) {
+      sourceType = 'external';
+      sourceLabel = 'Facebook';
+    }
+
+    // Generic non-http or other external sites
+    if (sourceType === 'embed' && !rawUrl.includes('drive.google.com') && !rawUrl.includes('youtube') && !rawUrl.includes('youtu.be')) {
+      // Try to embed as generic iframe — may or may not work
+      sourceType = 'embed';
+      embedUrl = rawUrl;
+      sourceLabel = rawUrl;
     }
 
     // Set strict no-download / no-cache response headers
@@ -476,26 +511,23 @@ app.get('/api/video-proxy/:lessonId', async (req, res) => {
 
     const watermarkHtml = userEmail ? `<div id="wm">${userEmail} &bull; EDUSPHERE SECURE STREAM</div>` : '';
 
-    // Hardened proxy HTML page - blocks extension injection and IDM download detection
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; frame-src https://drive.google.com https://www.youtube.com https://www.youtube-nocookie.com; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src 'none'; object-src 'none'; connect-src 'none';">
-<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="X-Content-Type-Options" content="nosniff">
-<title>EduSphere</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  html,body{width:100%;height:100%;background:#000;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none}
-  #player-frame{width:100%;height:100%;border:0;display:block;pointer-events:auto}
-  #shield{position:fixed;inset:0;z-index:2147483646;pointer-events:none}
-  #wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-25deg);color:rgba(255,255,255,0.035);font-size:11px;font-weight:900;letter-spacing:0.25em;text-transform:uppercase;pointer-events:none;white-space:nowrap;z-index:2147483647;font-family:sans-serif;user-select:none}
-</style>
-</head>
-<body>
+    const playerHtml = sourceType === 'external' ? `
+<div id="ext-card">
+  <div id="ext-icon">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+      <polyline points="15 3 21 3 21 9"/>
+      <line x1="10" y1="14" x2="21" y2="3"/>
+    </svg>
+  </div>
+  <h2 id="ext-title">External Content</h2>
+  <p id="ext-desc">This lesson's content is hosted on <strong>${sourceLabel}</strong> and cannot be embedded directly. Click the button below to open it in a new tab.</p>
+  <a id="ext-btn" href="${rawUrl}" target="_blank" rel="noopener noreferrer">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    Open ${sourceLabel}
+  </a>
+  <p id="ext-note">Make sure you are logged into your account before opening.</p>
+</div>` : `
 <div id="shield"></div>
 ${watermarkHtml}
 <iframe
@@ -505,7 +537,36 @@ ${watermarkHtml}
   allowfullscreen
   referrerpolicy="no-referrer"
   sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-fullscreen"
-></iframe>
+></iframe>`;
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; frame-src https://drive.google.com https://www.youtube.com https://www.youtube-nocookie.com; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src 'none'; object-src 'none';">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<title>EduSphere</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;background:#0a0a0f;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+  #player-frame{width:100%;height:100%;border:0;display:block;pointer-events:auto}
+  #shield{position:fixed;inset:0;z-index:2147483646;pointer-events:none}
+  #wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-25deg);color:rgba(255,255,255,0.035);font-size:11px;font-weight:900;letter-spacing:0.25em;text-transform:uppercase;pointer-events:none;white-space:nowrap;z-index:2147483647;user-select:none}
+  /* External link card styles */
+  #ext-card{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:2rem;text-align:center;gap:1.25rem;background:linear-gradient(135deg,#0f0f1a 0%,#0a0a14 100%)}
+  #ext-icon{width:80px;height:80px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:20px;display:flex;align-items:center;justify-content:center;color:#818cf8}
+  #ext-title{font-size:1.25rem;font-weight:900;color:#f1f5f9;letter-spacing:-0.02em}
+  #ext-desc{font-size:0.8rem;color:#64748b;max-width:340px;line-height:1.6}
+  #ext-desc strong{color:#94a3b8}
+  #ext-btn{display:inline-flex;align-items:center;gap:0.5rem;padding:0.75rem 1.75rem;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-weight:700;font-size:0.8rem;border-radius:12px;text-decoration:none;border:none;cursor:pointer;transition:opacity 0.2s;letter-spacing:0.01em}
+  #ext-btn:hover{opacity:0.85}
+  #ext-note{font-size:0.7rem;color:#475569;margin-top:0.25rem}
+</style>
+</head>
+<body>
+${playerHtml}
 <script>
 (function(){
   'use strict';
@@ -520,11 +581,10 @@ ${watermarkHtml}
     if(e.ctrlKey && (e.key==='u'||e.key==='U'||e.key==='s'||e.key==='S'||e.key==='p'||e.key==='P')) { e.preventDefault(); e.stopImmediatePropagation(); return false; }
   }, true);
 
-  // 3. Block drag events (prevent dragging video out)
+  // 3. Block drag
   document.addEventListener('dragstart', function(e){ e.preventDefault(); }, true);
 
-  // 4. MutationObserver — remove ANY element injected by IDM or other extensions
-  //    IDM injects elements with idm_id, idm_style, or specific class names
+  // 4. MutationObserver — remove IDM injected elements
   var BLOCK_ATTRS = ['idm_id','idm_style','__idm_id__','idm','idmcnb'];
   var BLOCK_CLASSES = ['idm_download_button','idm-sniff-button','idm_panel'];
   var observer = new MutationObserver(function(mutations){
@@ -532,41 +592,27 @@ ${watermarkHtml}
       m.addedNodes.forEach(function(node){
         if(node.nodeType !== 1) return;
         var el = node;
-        // Remove if has IDM attributes
         for(var i=0;i<BLOCK_ATTRS.length;i++){
-          if(el.hasAttribute && el.hasAttribute(BLOCK_ATTRS[i])){
-            el.remove(); return;
-          }
+          if(el.hasAttribute && el.hasAttribute(BLOCK_ATTRS[i])){ el.remove(); return; }
         }
-        // Remove if has IDM class
         for(var j=0;j<BLOCK_CLASSES.length;j++){
-          if(el.classList && el.classList.contains(BLOCK_CLASSES[j])){
-            el.remove(); return;
-          }
+          if(el.classList && el.classList.contains(BLOCK_CLASSES[j])){ el.remove(); return; }
         }
-        // Remove floating download panels injected at body level
         if(el.style){
           var zIdx = parseInt(el.style.zIndex||'0');
-          if(zIdx > 2000000 && el.id !== 'shield' && el.id !== 'wm'){
-            el.remove(); return;
-          }
+          if(zIdx > 2000000 && el.id !== 'shield' && el.id !== 'wm'){ el.remove(); return; }
         }
       });
     });
   });
   observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
 
-  // 5. Freeze fetch and XHR so extensions can't intercept streams via them
-  try {
-    Object.defineProperty(window, 'fetch', { get: function(){ return undefined; }, configurable: false });
-  } catch(e){}
-
-  // 6. Anti-devtools debugger loop
+  // 5. Anti-devtools debugger loop
   var devt = setInterval(function(){
     (function(){ (function(){ debugger; })(); })();
   }, 200);
 
-  // 7. Console image trick — if devtools opens, redirect away
+  // 6. Console image trick
   var img = new Image();
   Object.defineProperty(img, 'id', { get: function(){
     clearInterval(devt);
@@ -574,11 +620,8 @@ ${watermarkHtml}
   }});
   var checkDT = setInterval(function(){ console.log(img); console.clear(); }, 1500);
 
-  // Cleanup on unload
   window.addEventListener('beforeunload', function(){
-    clearInterval(devt);
-    clearInterval(checkDT);
-    observer.disconnect();
+    clearInterval(devt); clearInterval(checkDT); observer.disconnect();
   });
 })();
 </script>
