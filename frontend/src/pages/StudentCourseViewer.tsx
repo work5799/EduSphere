@@ -510,7 +510,7 @@ export default function StudentCourseViewer() {
 
             {/* Player Stream Container */}
             <div className="bg-[#09090f]/60 p-4 sm:p-8 flex items-center justify-center flex-shrink-0 relative border-b border-white/5">
-              <div className={`w-full max-w-4xl bg-black rounded-3xl overflow-hidden border border-white/5 shadow-2xl shadow-indigo-500/5 relative video-container-protected ${
+              <div className={`w-full max-w-6xl bg-black rounded-3xl overflow-hidden border border-white/5 shadow-2xl shadow-indigo-500/5 relative video-container-protected ${
                 activeLesson.type === 'pdf' ? 'h-[75vh] min-h-[555px]' : 'aspect-video'
               }`}>
                 {proxyUrl ? (
@@ -526,7 +526,7 @@ export default function StudentCourseViewer() {
             </div>
 
             {/* Lesson Info Details & Interactive Tab Section */}
-            <div className="max-w-4xl mx-auto w-full p-6 sm:p-8 space-y-6 flex-grow">
+            <div className="max-w-6xl mx-auto w-full p-6 sm:p-8 space-y-6 flex-grow">
               
               {/* Header and completion bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-6">
