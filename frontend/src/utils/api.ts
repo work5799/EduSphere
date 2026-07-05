@@ -134,6 +134,19 @@ export const api = {
     request(`/student/lessons/${lessonId}/complete`, { method: 'DELETE' })
 };
 
+// Parse YouTube Link helper
+export function parseYoutubeLink(link: string): string | null {
+  if (!link) return null;
+  const cleanLink = link.trim();
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = cleanLink.match(regExp);
+  if (match && match[2].length === 11) {
+    const videoId = match[2];
+    return `https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0&showinfo=0&controls=1&enablejsapi=1`;
+  }
+  return null;
+}
+
 // Parse Google Drive Link helper
 export function parseDriveLink(link: string): { type: 'embed' | 'file'; id: string; embedUrl: string } | null {
   if (!link) return null;

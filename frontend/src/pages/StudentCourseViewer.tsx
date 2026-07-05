@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { api, parseDriveLink, getCurrentUser } from '../utils/api';
+import { api, parseDriveLink, getCurrentUser, parseYoutubeLink } from '../utils/api';
 import { 
   ArrowLeft, ChevronDown, ChevronRight, Play, FileText, 
   Volume2, CheckSquare, Square, Menu, X, CheckCircle2, BookOpen,
@@ -271,8 +271,10 @@ export default function StudentCourseViewer() {
   const allLinks = deobfuscatedLink 
     ? deobfuscatedLink.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean) 
     : [];
-  const mainLink = allLinks[0] || '';
-  const parsedDrive = mainLink ? parseDriveLink(mainLink) : null;
+  const rawMainLink = allLinks[0] || '';
+  const parsedDrive = rawMainLink ? parseDriveLink(rawMainLink) : null;
+  const parsedYoutube = rawMainLink ? parseYoutubeLink(rawMainLink) : null;
+  const mainLink = parsedYoutube || rawMainLink;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-slate-100 flex flex-col lg:flex-row overflow-hidden h-screen">
