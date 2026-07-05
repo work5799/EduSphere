@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, getCurrentUser, getVideoProxyUrl } from '../utils/api';
 import { 
@@ -40,29 +40,44 @@ interface ProtectedPlayerProps {
 }
 
 function ProtectedPlayer({ src, title }: ProtectedPlayerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    containerRef.current.innerHTML = '';
-    const shadowRoot = containerRef.current.attachShadow({ mode: 'closed' });
-
-    const iframe = document.createElement('iframe');
-    iframe.src = src;
-    iframe.width = '100%';
-    iframe.height = '100%';
-    iframe.allow = 'autoplay; encrypted-media';
-    iframe.allowFullscreen = true;
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
-    iframe.style.border = '0';
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.title = title;
-
-    shadowRoot.appendChild(iframe);
-  }, [src, title]);
-
-  return <div ref={containerRef} className="w-full h-full" />;
+  return (
+    <div
+      style={{ position: 'relative', width: '100%', height: '100%', background: '#000' }}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <iframe
+        src={src}
+        title={title}
+        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+        allowFullScreen
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          display: 'block',
+        }}
+      />
+      {/* Overlay to block Google Drive / YouTube "open in new tab" button in top-right */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: '72px',
+          height: '72px',
+          zIndex: 9999,
+          background: 'transparent',
+          cursor: 'default',
+          pointerEvents: 'all',
+        }}
+        onClick={(e) => e.preventDefault()}
+        onContextMenu={(e) => e.preventDefault()}
+      />
+    </div>
+  );
 }
 
 export default function StudentCourseViewer() {
