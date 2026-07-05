@@ -42,7 +42,7 @@ interface ProtectedPlayerProps {
 function ProtectedPlayer({ src, title }: ProtectedPlayerProps) {
   return (
     <div
-      style={{ position: 'relative', width: '100%', height: '100%', background: '#000' }}
+      style={{ position: 'absolute', inset: 0, background: '#000' }}
       onContextMenu={(e) => e.preventDefault()}
     >
       <iframe
@@ -510,7 +510,9 @@ export default function StudentCourseViewer() {
 
             {/* Player Stream Container */}
             <div className="bg-[#09090f]/60 p-4 sm:p-8 flex items-center justify-center flex-shrink-0 relative border-b border-white/5">
-              <div className="w-full max-w-4xl aspect-video bg-black rounded-3xl overflow-hidden border border-white/5 shadow-2xl shadow-indigo-500/5 relative video-container-protected">
+              <div className={`w-full max-w-4xl bg-black rounded-3xl overflow-hidden border border-white/5 shadow-2xl shadow-indigo-500/5 relative video-container-protected ${
+                activeLesson.type === 'pdf' ? 'h-[75vh] min-h-[555px]' : 'aspect-video'
+              }`}>
                 {proxyUrl ? (
                   <ProtectedPlayer src={proxyUrl} title={activeLesson.title} />
                 ) : (
