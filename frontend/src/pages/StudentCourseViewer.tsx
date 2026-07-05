@@ -60,21 +60,49 @@ function ProtectedPlayer({ src, title }: ProtectedPlayerProps) {
           display: 'block',
         }}
       />
-      {/* Overlay to block Google Drive / YouTube "open in new tab" button in top-right */}
+      {/* Top overlay blocker to block Google Drive / YouTube header controls (Pop-out, share, title links) */}
       <div
         style={{
           position: 'absolute',
           top: 0,
+          left: 0,
           right: 0,
-          width: '72px',
-          height: '72px',
+          height: '56px',
           zIndex: 9999,
           background: 'transparent',
           cursor: 'default',
-          pointerEvents: 'all',
+          pointerEvents: 'auto',
         }}
-        onClick={(e) => e.preventDefault()}
-        onContextMenu={(e) => e.preventDefault()}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      />
+      {/* Bottom-right overlay blocker to block YouTube logo / pop-out links */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          right: 0,
+          width: '150px',
+          height: '50px',
+          zIndex: 9999,
+          background: 'transparent',
+          cursor: 'default',
+          pointerEvents: 'auto',
+        }}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
       />
     </div>
   );
@@ -162,12 +190,11 @@ export default function StudentCourseViewer() {
       setChapters(sortedChapters);
       setCompletedLessons(data.completedLessons || []);
       
-      // Auto-expand all chapters initially
+      // Keep all chapters collapsed by default like an accordion
       const expandMap: Record<string, boolean> = {};
       sortedChapters.forEach((ch: Chapter) => {
-        expandMap[ch.id] = true;
+        expandMap[ch.id] = false;
       });
-      setExpandedChapters(expandMap);
 
       // Select first lesson if none active and requested
       if (selectFirst && sortedChapters.length > 0) {
@@ -175,8 +202,11 @@ export default function StudentCourseViewer() {
         const firstChWithLessons = sortedChapters.find((ch: Chapter) => ch.lessons && ch.lessons.length > 0);
         if (firstChWithLessons && firstChWithLessons.lessons.length > 0) {
           setActiveLesson(firstChWithLessons.lessons[0]);
+          // Expand only this chapter that has the active lesson
+          expandMap[firstChWithLessons.id] = true;
         }
       }
+      setExpandedChapters(expandMap);
     } catch (err: any) {
       console.error('Error loading course content:', err);
       alert('Failed to load course contents.');

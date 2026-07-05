@@ -529,6 +529,8 @@ app.get('/api/video-proxy/:lessonId', async (req, res) => {
   <p id="ext-note">Make sure you are logged into your account before opening.</p>
 </div>` : `
 <div id="shield"></div>
+<div id="top-blocker"></div>
+<div id="br-blocker"></div>
 ${watermarkHtml}
 <iframe
   id="player-frame"
@@ -553,6 +555,8 @@ ${watermarkHtml}
   html,body{width:100%;height:100%;background:#0a0a0f;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
   #player-frame{width:100%;height:100%;border:0;display:block;pointer-events:auto}
   #shield{position:fixed;inset:0;z-index:2147483646;pointer-events:none}
+  #top-blocker{position:fixed;top:0;left:0;right:0;height:56px;z-index:2147483645;background:transparent;pointer-events:auto;cursor:default}
+  #br-blocker{position:fixed;bottom:0;right:0;width:150px;height:50px;z-index:2147483645;background:transparent;pointer-events:auto;cursor:default}
   #wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-25deg);color:rgba(255,255,255,0.035);font-size:11px;font-weight:900;letter-spacing:0.25em;text-transform:uppercase;pointer-events:none;white-space:nowrap;z-index:2147483647;user-select:none}
   /* External link card styles */
   #ext-card{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:2rem;text-align:center;gap:1.25rem;background:linear-gradient(135deg,#0f0f1a 0%,#0a0a14 100%)}
