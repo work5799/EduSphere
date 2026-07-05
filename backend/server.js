@@ -217,8 +217,8 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 
 // --- ADMIN USER MANAGEMENT ROUTES ---
 
-// 1. Get all users (students and admins)
-app.get('/api/admin/students', authenticateToken, requireRole('admin'), async (req, res) => {
+// 1. Get all users (students, moderators, and admins)
+app.get('/api/admin/students', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   try {
     const result = await db.query(
       `SELECT id, name, email, role, status, phone, created_at 
@@ -232,27 +232,34 @@ app.get('/api/admin/students', authenticateToken, requireRole('admin'), async (r
   }
 });
 
-// 2. Create User account (Admin or Student) directly
-app.post('/api/admin/users', authenticateToken, requireRole('admin'), async (req, res) => {
+// 2. Create User account (Admin, Moderator or Student) directly
+app.post('/api/admin/users', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   const { name, email, password, role, phone } = req.body;
 
   if (!name || !email || !password || !role) {
     return res.status(400).json({ message: 'All required fields must be filled' });
   }
 
-  if (!['admin', 'student'].includes(role)) {
+  if (!['admin', 'moderator', 'student'].includes(role)) {
     return res.status(400).json({ message: 'Invalid role value' });
   }
 
   try {
+    // If role is admin, check if one already exists
+    if (role === 'admin') {
+      const adminCheck = await db.query("SELECT id FROM users WHERE role = 'admin'");
+      if (adminCheck.rows.length > 0) {
+        return res.status(400).json({ message: 'A System Admin already exists. Only one System Admin is allowed.' });
+      }
+    }
+
     // Check if email already exists
     const emailCheck = await db.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     if (emailCheck.rows.length > 0) {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
-    const { v4: uuidv4 } = require('uuid');
-    const id = uuidv4();
+    const id = db.generateId();
     const passwordHash = await bcrypt.hash(password, 10);
     const status = 'approved'; // Directly approved since created by admin
 
@@ -270,7 +277,7 @@ app.post('/api/admin/users', authenticateToken, requireRole('admin'), async (req
 });
 
 // 3. Approve, Reject, or Change Status of User
-app.put('/api/admin/students/:id/status', authenticateToken, requireRole('admin'), async (req, res) => {
+app.put('/api/admin/students/:id/status', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   const { id } = req.params;
   const { status } = req.body; // 'approved' or 'rejected' or 'pending'
 
@@ -299,7 +306,7 @@ app.put('/api/admin/students/:id/status', authenticateToken, requireRole('admin'
 
 
 // --- ADMIN ANALYTICS ROUTE ---
-app.get('/api/admin/analytics', authenticateToken, requireRole('admin'), async (req, res) => {
+app.get('/api/admin/analytics', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   try {
     const supa = db.getSupabase();
 
@@ -457,7 +464,7 @@ app.get('/api/courses/:id', authenticateToken, async (req, res) => {
 // --- ADMIN COURSE CRUD ---
 
 // 1. Create Course
-app.post('/api/admin/courses', authenticateToken, requireRole('admin'), async (req, res) => {
+app.post('/api/admin/courses', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   const { title, description, thumbnail, category, price } = req.body;
 
   if (!title) {
@@ -483,7 +490,7 @@ app.post('/api/admin/courses', authenticateToken, requireRole('admin'), async (r
 });
 
 // 2. Edit Course
-app.put('/api/admin/courses/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+app.put('/api/admin/courses/:id', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   const { id } = req.params;
   const { title, description, thumbnail, category, price } = req.body;
 
@@ -530,7 +537,7 @@ app.delete('/api/admin/courses/:id', authenticateToken, requireRole('admin'), as
 // --- ADMIN COURSE CONTENT MANAGEMENT ---
 
 // 1. Create Chapter
-app.post('/api/admin/courses/:courseId/chapters', authenticateToken, requireRole('admin'), async (req, res) => {
+app.post('/api/admin/courses/:courseId/chapters', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   const { courseId } = req.params;
   const { title, sort_order } = req.body;
 
@@ -553,7 +560,7 @@ app.post('/api/admin/courses/:courseId/chapters', authenticateToken, requireRole
 });
 
 // 2. Edit Chapter
-app.put('/api/admin/chapters/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+app.put('/api/admin/chapters/:id', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   const { id } = req.params;
   const { title, sort_order } = req.body;
 
@@ -577,7 +584,7 @@ app.put('/api/admin/chapters/:id', authenticateToken, requireRole('admin'), asyn
 });
 
 // 3. Delete Chapter
-app.delete('/api/admin/chapters/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+app.delete('/api/admin/chapters/:id', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -593,7 +600,7 @@ app.delete('/api/admin/chapters/:id', authenticateToken, requireRole('admin'), a
 });
 
 // 4. Create Lesson
-app.post('/api/admin/chapters/:chapterId/lessons', authenticateToken, requireRole('admin'), async (req, res) => {
+app.post('/api/admin/chapters/:chapterId/lessons', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   const { chapterId } = req.params;
   const { title, type, drive_link, sort_order } = req.body;
 
@@ -619,7 +626,7 @@ app.post('/api/admin/chapters/:chapterId/lessons', authenticateToken, requireRol
 });
 
 // 5. Edit Lesson
-app.put('/api/admin/lessons/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+app.put('/api/admin/lessons/:id', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   const { id } = req.params;
   const { title, type, drive_link, sort_order } = req.body;
 
@@ -648,7 +655,7 @@ app.put('/api/admin/lessons/:id', authenticateToken, requireRole('admin'), async
 });
 
 // 6. Delete Lesson
-app.delete('/api/admin/lessons/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+app.delete('/api/admin/lessons/:id', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -825,7 +832,7 @@ app.delete('/api/student/lessons/:lessonId/complete', authenticateToken, require
 
 
 // --- ADMIN THUMBNAIL UPLOAD ---
-app.post('/api/admin/upload-thumbnail', authenticateToken, requireRole('admin'), async (req, res) => {
+app.post('/api/admin/upload-thumbnail', authenticateToken, requireRole(['admin', 'moderator']), async (req, res) => {
   const { base64Image, fileName, mimeType } = req.body;
 
   if (!base64Image) {

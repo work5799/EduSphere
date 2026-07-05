@@ -5,7 +5,7 @@ import {
   GraduationCap, LogOut, Users, BookOpen, UserCheck, 
   BarChart3, Plus, Edit2, Trash2, Check, X, FileText, 
   Play, Volume2, ArrowLeft, RefreshCw, FolderPlus, FilePlus,
-  Loader
+  Loader, UserPlus
 } from 'lucide-react';
 
 interface Student {
@@ -15,7 +15,7 @@ interface Student {
   status: 'pending' | 'approved' | 'rejected';
   phone: string;
   created_at: string;
-  role: 'admin' | 'student';
+  role: 'admin' | 'moderator' | 'student';
 }
 
 interface CourseDistribution {
@@ -72,6 +72,8 @@ export default function AdminDashboard() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'moderator'>('admin');
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Active course outline editor state
   const [activeOutlineCourse, setActiveOutlineCourse] = useState<Course | null>(null);
@@ -93,7 +95,7 @@ export default function AdminDashboard() {
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
-  const [newUserRole, setNewUserRole] = useState<'admin' | 'student'>('student');
+  const [newUserRole, setNewUserRole] = useState<'admin' | 'moderator' | 'student'>('student');
   const [newUserPhone, setNewUserPhone] = useState('');
 
   // Outline builder form states
@@ -112,10 +114,11 @@ export default function AdminDashboard() {
       return;
     }
     const cachedUser = JSON.parse(userJson);
-    if (cachedUser.role !== 'admin') {
+    if (cachedUser.role !== 'admin' && cachedUser.role !== 'moderator') {
       navigate('/');
       return;
     }
+    setCurrentUserRole(cachedUser.role);
 
     loadAdminData();
   }, [navigate]);
@@ -399,7 +402,9 @@ export default function AdminDashboard() {
           </div>
           <div>
             <span className="text-sm font-black tracking-tight bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">EduSphere</span>
-            <p className="text-[10px] text-slate-500 font-medium">Admin Panel</p>
+            <p className="text-[10px] text-slate-500 font-medium">
+              {currentUserRole === 'admin' ? 'Admin Panel' : 'Moderator Panel'}
+            </p>
           </div>
         </div>
 
@@ -460,11 +465,16 @@ export default function AdminDashboard() {
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 border-b border-white/5"
           style={{background: 'rgba(10,10,20,0.85)', backdropFilter: 'blur(20px)'}}>
           <div>
-            <h1 className="text-lg font-black text-white">
+            <h1 className="text-lg font-black text-white flex items-center gap-2">
               {activeTab === 'overview' && 'Dashboard Overview'}
               {activeTab === 'students' && 'User Management'}
               {activeTab === 'courses' && 'Course Management'}
-              {activeOutlineCourse && `📚 ${activeOutlineCourse.title}`}
+              {activeOutlineCourse && (
+                <>
+                  <BookOpen className="h-5 w-5 text-indigo-400" />
+                  <span>{activeOutlineCourse.title}</span>
+                </>
+              )}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               {activeTab === 'overview' && 'Monitor your platform analytics'}
@@ -529,8 +539,18 @@ export default function AdminDashboard() {
                   {showChapterFormFor !== null && (
                     <form onSubmit={handleAddChapter} className="p-5 rounded-xl border border-indigo-500/30 space-y-3"
                       style={{background:'rgba(99,102,241,0.05)'}}>
-                      <h3 className="font-bold text-slate-200 text-sm">
-                        {showChapterFormFor === 'new' ? '➕ New Chapter' : '✏️ Rename Chapter'}
+                      <h3 className="font-bold text-slate-200 text-sm flex items-center gap-1.5">
+                        {showChapterFormFor === 'new' ? (
+                          <>
+                            <FolderPlus className="h-4 w-4 text-indigo-400" />
+                            <span>New Chapter</span>
+                          </>
+                        ) : (
+                          <>
+                            <Edit2 className="h-4 w-4 text-indigo-400" />
+                            <span>Rename Chapter</span>
+                          </>
+                        )}
                       </h3>
                       <div className="flex gap-3">
                         <input type="text" required placeholder="Chapter title..."
@@ -582,8 +602,18 @@ export default function AdminDashboard() {
                         {showLessonFormFor?.chapterId === ch.id && (
                           <form onSubmit={handleLessonSubmit} className="p-5 border-b border-slate-800 space-y-3"
                             style={{background:'rgba(99,102,241,0.04)'}}>
-                            <h4 className="font-bold text-sm text-slate-300">
-                              {showLessonFormFor.lessonId ? '✏️ Edit Lesson' : '➕ Add Lesson'}
+                            <h4 className="font-bold text-sm text-slate-300 flex items-center gap-1.5">
+                              {showLessonFormFor.lessonId ? (
+                                <>
+                                  <Edit2 className="h-4 w-4 text-indigo-400" />
+                                  <span>Edit Lesson</span>
+                                </>
+                              ) : (
+                                <>
+                                  <FilePlus className="h-4 w-4 text-indigo-400" />
+                                  <span>Add Lesson</span>
+                                </>
+                              )}
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                               <div className="md:col-span-2">
@@ -594,9 +624,9 @@ export default function AdminDashboard() {
                               </div>
                               <select value={lessonType} onChange={e => setLessonType(e.target.value as any)}
                                 className="bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-2.5 text-xs text-white">
-                                <option value="video">📹 Video</option>
-                                <option value="audio">🎧 Audio</option>
-                                <option value="pdf">📄 PDF</option>
+                                <option value="video">Video</option>
+                                <option value="audio">Audio</option>
+                                <option value="pdf">PDF Document</option>
                               </select>
                             </div>
                             <textarea rows={3} value={lessonLink} onChange={e => setLessonLink(e.target.value)}
@@ -736,14 +766,47 @@ export default function AdminDashboard() {
                 <div className="max-w-7xl mx-auto">
                   <div className="rounded-2xl border border-white/8 overflow-hidden"
                     style={{background:'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)'}}>
-                    <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-5 border-b border-white/5 gap-4">
                       <div>
                         <h3 className="font-bold text-white">Registered Users</h3>
                         <p className="text-slate-500 text-xs mt-0.5">{students.length} total user accounts</p>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        {/* Search Bar */}
+                        <div className="relative flex items-center">
+                          <input
+                            type="text"
+                            placeholder="Search users..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="bg-slate-900/40 border border-white/10 hover:border-white/15 focus:border-indigo-500/80 focus:outline-none rounded-xl pl-9 pr-8 h-[36px] text-xs text-white placeholder-slate-500 w-36 sm:w-56 focus:w-40 sm:focus:w-64 transition-all duration-300 shadow-inner shadow-black/10 focus:shadow-indigo-500/5 peer"
+                          />
+                          <svg
+                            className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 peer-focus:text-indigo-400 transition-colors duration-200 pointer-events-none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                          </svg>
+                          {searchQuery && (
+                            <button
+                              onClick={() => setSearchQuery('')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors cursor-pointer"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+
                         {analytics && analytics.pendingStudents > 0 && (
-                          <span className="bg-amber-500/15 text-amber-400 border border-amber-500/30 text-xs font-bold px-3 py-1.5 rounded-full">
+                          <span className="bg-amber-500/15 text-amber-400 border border-amber-500/30 text-xs font-bold px-3 py-1.5 rounded-full hidden md:inline-block">
                             {analytics.pendingStudents} pending approval
                           </span>
                         )}
@@ -763,72 +826,102 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    {students.length === 0 ? (
-                      <div className="text-center py-20 text-slate-600">
-                        <Users className="h-8 w-8 mx-auto mb-3 opacity-30" />
-                        <p className="text-sm">No users registered yet.</p>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-white/5 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                              <th className="py-4 px-6 text-left">User</th>
-                              <th className="py-4 px-6 text-left">Role</th>
-                              <th className="py-4 px-6 text-left">Contact</th>
-                              <th className="py-4 px-6 text-left">Registered</th>
-                              <th className="py-4 px-6 text-left">Status</th>
-                              <th className="py-4 px-6 text-right">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-white/5">
-                            {students.map((student) => (
-                              <tr key={student.id} className="hover:bg-white/3 transition group">
-                                <td className="py-4 px-6">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/30 to-purple-500/30 border border-indigo-500/20 flex items-center justify-center text-sm font-black text-indigo-300 flex-shrink-0">
-                                      {student.name.charAt(0).toUpperCase()}
+                    {(() => {
+                      const filteredStudents = students.filter(student => {
+                        const query = searchQuery.toLowerCase().trim();
+                        if (!query) return true;
+                        return (
+                          student.name.toLowerCase().includes(query) ||
+                          student.email.toLowerCase().includes(query) ||
+                          (student.phone && student.phone.toLowerCase().includes(query)) ||
+                          student.role.toLowerCase().includes(query) ||
+                          student.status.toLowerCase().includes(query)
+                        );
+                      });
+
+                      if (students.length === 0) {
+                        return (
+                          <div className="text-center py-20 text-slate-600">
+                            <Users className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                            <p className="text-sm">No users registered yet.</p>
+                          </div>
+                        );
+                      }
+
+                      if (filteredStudents.length === 0) {
+                        return (
+                          <div className="text-center py-20 text-slate-600">
+                            <Users className="h-8 w-8 mx-auto mb-3 opacity-30" />
+                            <p className="text-sm text-slate-400">No users found matching your search.</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-white/5 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                                <th className="py-4 px-6 text-left">User</th>
+                                <th className="py-4 px-6 text-left">Role</th>
+                                <th className="py-4 px-6 text-left">Contact</th>
+                                <th className="py-4 px-6 text-left">Registered</th>
+                                <th className="py-4 px-6 text-left">Status</th>
+                                <th className="py-4 px-6 text-right">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                              {filteredStudents.map((student) => (
+                                <tr key={student.id} className="hover:bg-white/3 transition group">
+                                  <td className="py-4 px-6">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/30 to-purple-500/30 border border-indigo-500/20 flex items-center justify-center text-sm font-black text-indigo-300 flex-shrink-0">
+                                        {student.name.charAt(0).toUpperCase()}
+                                      </div>
+                                      <span className="font-bold text-slate-200">{student.name}</span>
                                     </div>
-                                    <span className="font-bold text-slate-200">{student.name}</span>
-                                  </div>
-                                </td>
-                                <td className="py-4 px-6">
-                                  {student.role === 'admin' ? (
-                                    <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg">
-                                      Admin
-                                    </span>
-                                  ) : (
-                                    <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg">
-                                      Student
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-4 px-6">
-                                  <p className="text-slate-300 text-xs font-medium">{student.email}</p>
-                                  {student.phone && <p className="text-slate-600 text-xs mt-0.5">{student.phone}</p>}
-                                </td>
-                                <td className="py-4 px-6 text-slate-500 text-xs">
-                                  {new Date(student.created_at).toLocaleDateString('en-US', {day:'numeric', month:'short', year:'numeric'})}
-                                </td>
-                                <td className="py-4 px-6">
-                                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border ${
-                                    student.status === 'approved'
-                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                      : student.status === 'rejected'
-                                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                  }`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${student.status === 'approved' ? 'bg-emerald-400' : student.status === 'rejected' ? 'bg-rose-400' : 'bg-amber-400 animate-pulse'}`} />
-                                    {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
-                                  </span>
-                                </td>
-                                <td className="py-4 px-6 text-right">
-                                  <div className="flex items-center justify-end gap-2">
+                                  </td>
+                                  <td className="py-4 px-6">
                                     {student.role === 'admin' ? (
-                                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider bg-white/5 border border-white/5 px-2.5 py-1.5 rounded-lg select-none">
-                                        Protected Admin
+                                      <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg">
+                                        System Admin
+                                      </span>
+                                    ) : student.role === 'moderator' ? (
+                                      <span className="bg-teal-500/10 text-teal-400 border border-teal-500/20 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg">
+                                        Moderator
                                       </span>
                                     ) : (
+                                      <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg">
+                                        Student
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-4 px-6">
+                                    <p className="text-slate-300 text-xs font-medium">{student.email}</p>
+                                    {student.phone && <p className="text-slate-600 text-xs mt-0.5">{student.phone}</p>}
+                                  </td>
+                                  <td className="py-4 px-6 text-slate-500 text-xs">
+                                    {new Date(student.created_at).toLocaleDateString('en-US', {day:'numeric', month:'short', year:'numeric'})}
+                                  </td>
+                                  <td className="py-4 px-6">
+                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border ${
+                                      student.status === 'approved'
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                        : student.status === 'rejected'
+                                          ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                          : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                    }`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${student.status === 'approved' ? 'bg-emerald-400' : student.status === 'rejected' ? 'bg-rose-400' : 'bg-amber-400 animate-pulse'}`} />
+                                      {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
+                                    </span>
+                                  </td>
+                                  <td className="py-4 px-6 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      {student.role === 'admin' ? (
+                                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider bg-white/5 border border-white/5 px-2.5 py-1.5 rounded-lg select-none">
+                                          Protected Admin
+                                        </span>
+                                      ) : (
                                       <>
                                         {student.status === 'pending' && (
                                           <>
@@ -863,7 +956,8 @@ export default function AdminDashboard() {
                           </tbody>
                         </table>
                       </div>
-                    )}
+                    );
+                  })()}
                   </div>
                 </div>
               )}
@@ -894,8 +988,18 @@ export default function AdminDashboard() {
                           className="absolute top-5 right-5 text-slate-500 hover:text-white transition cursor-pointer">
                           <X className="h-5 w-5" />
                         </button>
-                        <h3 className="text-lg font-black text-white mb-6">
-                          {editCourseId ? '✏️ Edit Course' : '🚀 Create New Course'}
+                        <h3 className="text-lg font-black text-white mb-6 flex items-center gap-2">
+                          {editCourseId ? (
+                            <>
+                              <Edit2 className="h-5 w-5 text-indigo-400" />
+                              <span>Edit Course</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-5 w-5 text-indigo-400" />
+                              <span>Create New Course</span>
+                            </>
+                          )}
                         </h3>
                         <form onSubmit={handleCourseSubmit} className="space-y-4">
                           <div>
@@ -1025,10 +1129,12 @@ export default function AdminDashboard() {
                                 className="p-2 hover:bg-white/8 text-slate-500 hover:text-white rounded-xl border border-white/5 hover:border-white/15 transition cursor-pointer">
                                 <Edit2 className="h-3.5 w-3.5" />
                               </button>
-                              <button onClick={() => handleDeleteCourse(course.id)}
-                                className="p-2 hover:bg-rose-500/15 text-slate-500 hover:text-rose-400 rounded-xl border border-white/5 hover:border-rose-500/20 transition cursor-pointer">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              {currentUserRole === 'admin' && (
+                                <button onClick={() => handleDeleteCourse(course.id)}
+                                  className="p-2 hover:bg-rose-500/15 text-slate-500 hover:text-rose-400 rounded-xl border border-white/5 hover:border-rose-500/20 transition cursor-pointer">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1047,8 +1153,9 @@ export default function AdminDashboard() {
                       className="absolute top-5 right-5 text-slate-500 hover:text-white transition cursor-pointer">
                       <X className="h-5 w-5" />
                     </button>
-                    <h3 className="text-lg font-black text-white mb-6">
-                      ➕ Create New User Account
+                    <h3 className="text-lg font-black text-white mb-6 flex items-center gap-2">
+                      <UserPlus className="h-5 w-5 text-indigo-400" />
+                      <span>Create New User Account</span>
                     </h3>
                     <form onSubmit={handleUserSubmit} className="space-y-4">
                       <div>
@@ -1071,7 +1178,10 @@ export default function AdminDashboard() {
                           <select value={newUserRole} onChange={e => setNewUserRole(e.target.value as any)}
                             className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-sm text-white">
                             <option value="student">Student</option>
-                            <option value="admin">System Admin</option>
+                            <option value="moderator">Moderator</option>
+                            {!students.some(u => u.role === 'admin') && (
+                              <option value="admin">System Admin</option>
+                            )}
                           </select>
                         </div>
                         <div>

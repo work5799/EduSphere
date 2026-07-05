@@ -23,7 +23,7 @@ const StudentRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  if (user.role === 'admin') {
+  if (user.role === 'admin' || user.role === 'moderator') {
     return <Navigate to="/admin" replace />;
   }
 
@@ -47,7 +47,7 @@ const AdminRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  if (user.role !== 'admin') {
+  if (user.role !== 'admin' && user.role !== 'moderator') {
     return <Navigate to="/" replace />;
   }
 
@@ -63,7 +63,7 @@ const PendingRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  if (user.role === 'admin') {
+  if (user.role === 'admin' || user.role === 'moderator') {
     return <Navigate to="/admin" replace />;
   }
 

@@ -280,7 +280,7 @@ async function initDb() {
       name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('admin', 'student')),
+      role TEXT NOT NULL CHECK(role IN ('admin', 'moderator', 'student')),
       status TEXT NOT NULL CHECK(status IN ('pending', 'approved', 'rejected')),
       phone TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -332,8 +332,63 @@ async function initDb() {
 
   return new Promise((resolve, reject) => {
     sqliteDb.exec(sqliteSchema, (err) => {
-      if (err) { console.error('SQLite init error:', err); reject(err); }
-      else { console.log('SQLite tables initialized.'); resolve(); }
+      if (err) {
+        console.error('SQLite init error:', err);
+        reject(err);
+      } else {
+        console.log('SQLite tables initialized.');
+        // Run migration check to add moderator role if not already present
+        sqliteDb.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'", (err, row) => {
+          if (err) {
+            console.error('Error checking users schema:', err);
+            return reject(err);
+          }
+          if (row && row.sql && !row.sql.includes('moderator')) {
+            console.log('Migrating users table check constraint to support moderator...');
+            sqliteDb.serialize(() => {
+              sqliteDb.run("PRAGMA foreign_keys=OFF;", (err) => { if (err) console.error(err); });
+              sqliteDb.run("BEGIN TRANSACTION;", (err) => { if (err) console.error(err); });
+              
+              sqliteDb.run(`
+                CREATE TABLE users_new (
+                  id TEXT PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  email TEXT NOT NULL UNIQUE,
+                  password_hash TEXT NOT NULL,
+                  role TEXT NOT NULL CHECK(role IN ('admin', 'moderator', 'student')),
+                  status TEXT NOT NULL CHECK(status IN ('pending', 'approved', 'rejected')),
+                  phone TEXT,
+                  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+              `, (err) => { if (err) console.error(err); });
+              
+              sqliteDb.run(`
+                INSERT INTO users_new (id, name, email, password_hash, role, status, phone, created_at)
+                SELECT id, name, email, password_hash, role, status, phone, created_at FROM users;
+              `, (err) => { if (err) console.error(err); });
+              
+              sqliteDb.run("DROP TABLE users;", (err) => { if (err) console.error(err); });
+              sqliteDb.run("ALTER TABLE users_new RENAME TO users;", (err) => { if (err) console.error(err); });
+              
+              sqliteDb.run("COMMIT;", (err) => {
+                if (err) {
+                  sqliteDb.run("ROLLBACK;");
+                  console.error('Migration failed, rolled back.', err);
+                  reject(err);
+                } else {
+                  sqliteDb.run("PRAGMA foreign_keys=ON;", (err) => {
+                    if (err) console.error(err);
+                    console.log('Successfully migrated users table to support moderator.');
+                    resolve();
+                  });
+                }
+              });
+            });
+          } else {
+            resolve();
+          }
+        });
+      }
     });
   });
 }

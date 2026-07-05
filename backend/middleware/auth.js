@@ -21,12 +21,13 @@ function authenticateToken(req, res, next) {
 }
 
 function requireRole(role) {
+  const allowedRoles = Array.isArray(role) ? role : [role];
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
-    if (req.user.role !== role) {
-      return res.status(403).json({ message: `Access denied. Requires ${role} role.` });
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: `Access denied. Requires one of these roles: ${allowedRoles.join(', ')}` });
     }
     next();
   };

@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL CHECK(role IN ('admin', 'student')),
+  role VARCHAR(50) NOT NULL CHECK(role IN ('admin', 'moderator', 'student')),
   status VARCHAR(50) NOT NULL CHECK(status IN ('pending', 'approved', 'rejected')),
   phone VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
