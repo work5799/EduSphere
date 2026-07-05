@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { api, parseDriveLink } from '../utils/api';
+import { api, parseDriveLink, getCurrentUser } from '../utils/api';
 import { 
   ArrowLeft, ChevronDown, ChevronRight, Play, FileText, 
   Volume2, CheckSquare, Square, Menu, X, CheckCircle2, BookOpen,
@@ -35,6 +35,9 @@ interface Course {
 export default function StudentCourseViewer() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  const user = getCurrentUser();
+  const userEmail = user?.email || 'Student';
   
   const [course, setCourse] = useState<Course | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -51,6 +54,47 @@ export default function StudentCourseViewer() {
       loadCourseData();
     }
   }, [id]);
+
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && target.closest('.video-container-protected')) {
+        e.preventDefault();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+        (e.ctrlKey && e.key === 'u') ||
+        (e.ctrlKey && e.key === 's')
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    let intervalId: any;
+    const startAntiDevTools = () => {
+      intervalId = setInterval(() => {
+        (function() {
+          (function() {
+            debugger;
+          })();
+        })();
+      }, 100);
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+    startAntiDevTools();
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+      clearInterval(intervalId);
+    };
+  }, []);
 
   const loadCourseData = async (selectFirst = true) => {
     try {
@@ -382,7 +426,7 @@ export default function StudentCourseViewer() {
 
             {/* Player Stream Container */}
             <div className="bg-[#09090f]/60 p-4 sm:p-8 flex items-center justify-center flex-shrink-0 relative border-b border-white/5">
-              <div className="w-full max-w-4xl aspect-video bg-black rounded-3xl overflow-hidden border border-white/5 shadow-2xl shadow-indigo-500/5 relative">
+              <div className="w-full max-w-4xl aspect-video bg-black rounded-3xl overflow-hidden border border-white/5 shadow-2xl shadow-indigo-500/5 relative video-container-protected">
                 {parsedDrive ? (
                   <iframe
                     src={parsedDrive.embedUrl}
@@ -390,7 +434,8 @@ export default function StudentCourseViewer() {
                     height="100%"
                     allow="autoplay; encrypted-media"
                     allowFullScreen
-                    className="border-0"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+                    className="border-0 animate-fade-in"
                     title={activeLesson.title}
                   />
                 ) : mainLink ? (
@@ -400,7 +445,8 @@ export default function StudentCourseViewer() {
                     height="100%"
                     allow="autoplay; encrypted-media"
                     allowFullScreen
-                    className="border-0"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+                    className="border-0 animate-fade-in"
                     title={activeLesson.title}
                   />
                 ) : (
@@ -410,6 +456,12 @@ export default function StudentCourseViewer() {
                     <p className="text-slate-500 text-xs max-w-sm">This lesson does not contain a Google Drive media embed link.</p>
                   </div>
                 )}
+                {/* Security Watermark overlay */}
+                <div className="absolute inset-0 pointer-events-none select-none z-10 overflow-hidden flex items-center justify-center">
+                  <div className="text-white/[0.04] text-[9px] sm:text-xs font-black rotate-[-25deg] select-none pointer-events-none whitespace-nowrap bg-white/[0.01] px-4 py-2 rounded-full border border-white/[0.02] uppercase tracking-[0.25em]">
+                    {userEmail} • EDUSPHERE SECURE STREAM
+                  </div>
+                </div>
               </div>
             </div>
 
