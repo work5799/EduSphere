@@ -380,6 +380,120 @@ app.get('/api/courses', async (req, res) => {
   }
 });
 
+// VIDEO PROXY - Serves player HTML page so real video URL never reaches client browser
+// IDM and other extensions cannot intercept what they cannot see in network tab
+app.get('/api/video-proxy/:lessonId', async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    const token = req.query.token;
+
+    if (!token) return res.status(401).send('<h3>Unauthorized</h3>');
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch {
+      return res.status(401).send('<h3>Session expired. Please refresh the page.</h3>');
+    }
+
+    const userId = decoded.id;
+    const userEmail = decoded.email || '';
+
+    // Fetch lesson from DB
+    let driveLink = null;
+    const supa = db.getSupabase();
+
+    if (supa) {
+      const { data: lesson } = await supa.from('lessons').select('drive_link, chapter_id').eq('id', lessonId).single();
+      if (!lesson) return res.status(404).send('<h3>Lesson not found</h3>');
+
+      // Verify enrollment via chapter -> course
+      const { data: chapter } = await supa.from('chapters').select('course_id').eq('id', lesson.chapter_id).single();
+      if (!chapter) return res.status(404).send('<h3>Not found</h3>');
+
+      if (decoded.role === 'student') {
+        const { data: enroll } = await supa.from('enrollments').select('id').eq('student_id', userId).eq('course_id', chapter.course_id);
+        if (!enroll || enroll.length === 0) return res.status(403).send('<h3>Access denied</h3>');
+      }
+
+      driveLink = lesson.drive_link;
+    } else {
+      const lessonRes = await db.query('SELECT drive_link, chapter_id FROM lessons WHERE id = $1', [lessonId]);
+      if (lessonRes.rows.length === 0) return res.status(404).send('<h3>Lesson not found</h3>');
+      const lesson = lessonRes.rows[0];
+
+      const chapterRes = await db.query('SELECT course_id FROM chapters WHERE id = $1', [lesson.chapter_id]);
+      if (chapterRes.rows.length === 0) return res.status(404).send('<h3>Not found</h3>');
+      const courseId = chapterRes.rows[0].course_id;
+
+      if (decoded.role === 'student') {
+        const enrollRes = await db.query('SELECT id FROM enrollments WHERE student_id = $1 AND course_id = $2', [userId, courseId]);
+        if (enrollRes.rows.length === 0) return res.status(403).send('<h3>Access denied</h3>');
+      }
+
+      driveLink = lesson.drive_link;
+    }
+
+    if (!driveLink) return res.status(404).send('<h3>No video link found</h3>');
+
+    // Build the embed URL from the stored drive link
+    let embedUrl = driveLink.trim().split(/\r?\n/)[0].trim();
+
+    // Convert Google Drive view/share links to embed
+    const driveMatch = embedUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (driveMatch) {
+      embedUrl = `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+    }
+
+    // Convert YouTube watch links to embed
+    const ytMatch = embedUrl.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/);
+    if (ytMatch) {
+      embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}?modestbranding=1&rel=0&showinfo=0&controls=1`;
+    }
+
+    // Set strict no-download / no-cache response headers
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Content-Security-Policy', "default-src 'self' https://drive.google.com https://www.youtube.com https://www.youtube-nocookie.com; frame-src https://drive.google.com https://www.youtube.com https://www.youtube-nocookie.com; script-src 'unsafe-inline'; style-src 'unsafe-inline'");
+
+    const watermarkHtml = userEmail ? `<div id="wm">${userEmail} &bull; EDUSPHERE SECURE STREAM</div>` : '';
+
+    // Return a minimal sandboxed HTML page with the player
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduSphere Stream</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;background:#000;overflow:hidden;user-select:none;-webkit-user-select:none}
+  iframe{width:100%;height:100%;border:0;display:block}
+  #wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-25deg);color:rgba(255,255,255,0.04);font-size:11px;font-weight:900;letter-spacing:0.25em;text-transform:uppercase;pointer-events:none;white-space:nowrap;z-index:9999;font-family:sans-serif}
+</style>
+</head>
+<body>
+${watermarkHtml}
+<iframe src="${embedUrl}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+<script>
+  document.addEventListener('contextmenu',function(e){e.preventDefault();});
+  document.addEventListener('keydown',function(e){
+    if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&['I','J','C'].includes(e.key))||(e.ctrlKey&&['u','s'].includes(e.key))){e.preventDefault();}
+  });
+</script>
+</body>
+</html>`;
+
+    res.send(html);
+  } catch (err) {
+    console.error('Video proxy error:', err);
+    res.status(500).send('<h3>Server error</h3>');
+  }
+});
+
 // 2. Get course detail with chapters, lessons and completion check
 app.get('/api/courses/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { api, parseDriveLink, getCurrentUser, parseYoutubeLink } from '../utils/api';
+import { api, getCurrentUser, getVideoProxyUrl } from '../utils/api';
 import { 
   ArrowLeft, ChevronDown, ChevronRight, Play, FileText, 
   Volume2, CheckSquare, Square, Menu, X, CheckCircle2, BookOpen,
-  HelpCircle, Info, ChevronLeft, Award, ExternalLink
+  HelpCircle, Info, ChevronLeft, Award
 } from 'lucide-react';
 
 interface Lesson {
@@ -32,15 +32,7 @@ interface Course {
   category: string;
 }
 
-const deobfuscateLink = (obfuscated: string) => {
-  if (!obfuscated) return '';
-  try {
-    const b64 = obfuscated.split('').reverse().join('');
-    return atob(b64);
-  } catch {
-    return obfuscated;
-  }
-};
+
 
 interface ProtectedPlayerProps {
   src: string;
@@ -77,8 +69,7 @@ export default function StudentCourseViewer() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const user = getCurrentUser();
-  const userEmail = user?.email || 'Student';
+  getCurrentUser(); // user info handled server-side in video proxy
   
   const [course, setCourse] = useState<Course | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -298,14 +289,8 @@ export default function StudentCourseViewer() {
 
   const { prev: prevLesson, next: nextLesson } = getPrevNextLessons();
 
-  const deobfuscatedLink = activeLesson && activeLesson.drive_link ? deobfuscateLink(activeLesson.drive_link) : '';
-  const allLinks = deobfuscatedLink 
-    ? deobfuscatedLink.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean) 
-    : [];
-  const rawMainLink = allLinks[0] || '';
-  const parsedDrive = rawMainLink ? parseDriveLink(rawMainLink) : null;
-  const parsedYoutube = rawMainLink ? parseYoutubeLink(rawMainLink) : null;
-  const mainLink = parsedYoutube || rawMainLink;
+
+  const proxyUrl = activeLesson ? getVideoProxyUrl(activeLesson.id) : null;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-slate-100 flex flex-col lg:flex-row overflow-hidden h-screen">
@@ -481,23 +466,15 @@ export default function StudentCourseViewer() {
             {/* Player Stream Container */}
             <div className="bg-[#09090f]/60 p-4 sm:p-8 flex items-center justify-center flex-shrink-0 relative border-b border-white/5">
               <div className="w-full max-w-4xl aspect-video bg-black rounded-3xl overflow-hidden border border-white/5 shadow-2xl shadow-indigo-500/5 relative video-container-protected">
-                {parsedDrive ? (
-                  <ProtectedPlayer src={parsedDrive.embedUrl} title={activeLesson.title} />
-                ) : mainLink ? (
-                  <ProtectedPlayer src={mainLink} title={activeLesson.title} />
+                {proxyUrl ? (
+                  <ProtectedPlayer src={proxyUrl} title={activeLesson.title} />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 p-6 text-center">
                     <FileText className="h-12 w-12 text-slate-700 mb-3 animate-pulse" />
                     <h3 className="text-lg font-bold text-slate-350 mb-1">No stream link provided</h3>
-                    <p className="text-slate-500 text-xs max-w-sm">This lesson does not contain a Google Drive media embed link.</p>
+                    <p className="text-slate-500 text-xs max-w-sm">This lesson does not contain a media embed link.</p>
                   </div>
                 )}
-                {/* Security Watermark overlay */}
-                <div className="absolute inset-0 pointer-events-none select-none z-10 overflow-hidden flex items-center justify-center">
-                  <div className="text-white/[0.04] text-[9px] sm:text-xs font-black rotate-[-25deg] select-none pointer-events-none whitespace-nowrap bg-white/[0.01] px-4 py-2 rounded-full border border-white/[0.02] uppercase tracking-[0.25em]">
-                    {userEmail} • EDUSPHERE SECURE STREAM
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -536,7 +513,7 @@ export default function StudentCourseViewer() {
               <div className="flex border-b border-white/5">
                 {[
                   { id: 'notes', label: 'Overview & Guide', icon: Info },
-                  { id: 'resources', label: `Attachments (${allLinks.length})`, icon: FileText },
+                  { id: 'resources', label: 'Attachments', icon: FileText },
                   { id: 'help', label: 'Troubleshoot', icon: HelpCircle }
                 ].map(tab => {
                   const isActive = activeInfoTab === tab.id;
@@ -584,30 +561,9 @@ export default function StudentCourseViewer() {
                 {activeInfoTab === 'resources' && (
                   <div className="space-y-4">
                     <h3 className="text-xs font-black text-slate-405 uppercase tracking-widest">Downloadable Files & Materials</h3>
-                    {allLinks.length === 0 ? (
-                      <div className="text-center py-10 rounded-2xl border border-white/5 bg-white/[0.005]">
-                        <p className="text-slate-500 text-xs">No extra resources or PDFs are attached to this lesson.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {allLinks.map((link, idx) => (
-                          <a 
-                            key={idx}
-                            href={link} 
-                            target="_blank" 
-                            rel="noreferrer"
-                            className="flex items-center gap-3 p-3.5 rounded-xl bg-white/5 hover:bg-indigo-650/15 hover:text-white border border-white/5 hover:border-indigo-500/20 text-indigo-400 transition font-bold group"
-                          >
-                            <FileText className="h-5 w-5 text-indigo-400 flex-shrink-0" />
-                            <div className="flex-grow min-w-0 text-left">
-                              <span className="text-xs text-slate-200 block truncate font-black">Attachment #{idx + 1}</span>
-                              <span className="text-[10px] text-slate-500 font-medium block truncate mt-0.5">{link}</span>
-                            </div>
-                            <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-indigo-400 transition" />
-                          </a>
-                        ))}
-                      </div>
-                    )}
+                    <div className="text-center py-10 rounded-2xl border border-white/5 bg-white/[0.005]">
+                      <p className="text-slate-500 text-xs">No extra resources or PDFs are attached to this lesson.</p>
+                    </div>
                   </div>
                 )}
 

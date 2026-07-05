@@ -6,6 +6,14 @@ export function getToken(): string | null {
   return localStorage.getItem('edusphere_token');
 }
 
+export function getVideoProxyUrl(lessonId: string): string {
+  const token = getToken() || '';
+  const base = typeof window !== 'undefined' && window.location.origin.includes('localhost')
+    ? 'http://localhost:5000'
+    : '';
+  return `${base}/api/video-proxy/${lessonId}?token=${encodeURIComponent(token)}`;
+}
+
 export function setToken(token: string): void {
   localStorage.setItem('edusphere_token', token);
 }
