@@ -32,6 +32,16 @@ interface Course {
   category: string;
 }
 
+const deobfuscateLink = (obfuscated: string) => {
+  if (!obfuscated) return '';
+  try {
+    const b64 = obfuscated.split('').reverse().join('');
+    return atob(b64);
+  } catch {
+    return obfuscated;
+  }
+};
+
 export default function StudentCourseViewer() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -57,10 +67,7 @@ export default function StudentCourseViewer() {
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target && target.closest('.video-container-protected')) {
-        e.preventDefault();
-      }
+      e.preventDefault();
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -85,6 +92,18 @@ export default function StudentCourseViewer() {
       }, 100);
     };
 
+    const element = new Image();
+    Object.defineProperty(element, 'id', {
+      get: () => {
+        window.location.href = 'about:blank';
+      }
+    });
+
+    const checkDevTools = setInterval(() => {
+      console.log(element);
+      console.clear();
+    }, 1000);
+
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('keydown', handleKeyDown);
     startAntiDevTools();
@@ -93,6 +112,7 @@ export default function StudentCourseViewer() {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('keydown', handleKeyDown);
       clearInterval(intervalId);
+      clearInterval(checkDevTools);
     };
   }, []);
 
@@ -247,8 +267,9 @@ export default function StudentCourseViewer() {
 
   const { prev: prevLesson, next: nextLesson } = getPrevNextLessons();
 
-  const allLinks = activeLesson && activeLesson.drive_link 
-    ? activeLesson.drive_link.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean) 
+  const deobfuscatedLink = activeLesson && activeLesson.drive_link ? deobfuscateLink(activeLesson.drive_link) : '';
+  const allLinks = deobfuscatedLink 
+    ? deobfuscatedLink.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean) 
     : [];
   const mainLink = allLinks[0] || '';
   const parsedDrive = mainLink ? parseDriveLink(mainLink) : null;

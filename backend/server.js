@@ -419,6 +419,23 @@ app.get('/api/courses/:id', authenticateToken, async (req, res) => {
         lessons: (lessons || []).filter(l => l.chapter_id === ch.id)
       }));
 
+      if (req.user.role === 'student') {
+        const obfuscateLink = (link) => {
+          if (!link) return '';
+          const b64 = Buffer.from(link).toString('base64');
+          return b64.split('').reverse().join('');
+        };
+        chaptersWithLessons.forEach(ch => {
+          if (ch.lessons) {
+            ch.lessons.forEach(l => {
+              if (l.drive_link) {
+                l.drive_link = obfuscateLink(l.drive_link);
+              }
+            });
+          }
+        });
+      }
+
       return res.json({ course: courseData, isEnrolled, chapters: chaptersWithLessons, completedLessons: completedLessonIds });
     }
 
@@ -451,6 +468,24 @@ app.get('/api/courses/:id', authenticateToken, async (req, res) => {
     }
 
     const chaptersWithLessons = chapters.map(ch => ({ ...ch, lessons: lessons.filter(l => l.chapter_id === ch.id) }));
+
+    if (req.user.role === 'student') {
+      const obfuscateLink = (link) => {
+        if (!link) return '';
+        const b64 = Buffer.from(link).toString('base64');
+        return b64.split('').reverse().join('');
+      };
+      chaptersWithLessons.forEach(ch => {
+        if (ch.lessons) {
+          ch.lessons.forEach(l => {
+            if (l.drive_link) {
+              l.drive_link = obfuscateLink(l.drive_link);
+            }
+          });
+        }
+      });
+    }
+
     res.json({ course, isEnrolled, chapters: chaptersWithLessons, completedLessons: completedLessonIds });
 
   } catch (err) {
