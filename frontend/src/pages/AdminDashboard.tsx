@@ -5,7 +5,8 @@ import {
   GraduationCap, LogOut, Users, BookOpen, UserCheck, 
   BarChart3, Plus, Edit2, Trash2, Check, X, FileText, 
   Play, Volume2, ArrowLeft, RefreshCw, FolderPlus, FilePlus,
-  Loader, UserPlus, ChevronUp, ChevronDown, ChevronRight
+  Loader, UserPlus, ChevronUp, ChevronDown, ChevronRight,
+  GripVertical
 } from 'lucide-react';
 
 interface Student {
@@ -75,6 +76,9 @@ export default function AdminDashboard() {
   const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'moderator'>('admin');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
+  const [draggedLessonIndex, setDraggedLessonIndex] = useState<number | null>(null);
+  const [draggedChapterId, setDraggedChapterId] = useState<string | null>(null);
+  const [dragOverLessonIndex, setDragOverLessonIndex] = useState<number | null>(null);
   
   // Active course outline editor state
   const [activeOutlineCourse, setActiveOutlineCourse] = useState<Course | null>(null);
@@ -430,6 +434,37 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDragReorder = async (chapterId: string, fromIdx: number, toIdx: number) => {
+    const chapter = outlineChapters.find(ch => ch.id === chapterId);
+    if (!chapter || !chapter.lessons) return;
+
+    const lessons = [...chapter.lessons];
+    const [movedLesson] = lessons.splice(fromIdx, 1);
+    lessons.splice(toIdx, 0, movedLesson);
+
+    const updatedLessons = lessons.map((les, index) => ({
+      ...les,
+      sort_order: index
+    }));
+
+    try {
+      await Promise.all(
+        updatedLessons.map(les =>
+          api.updateLesson(les.id, {
+            title: les.title,
+            type: les.type,
+            drive_link: les.drive_link,
+            sort_order: les.sort_order
+          })
+        )
+      );
+
+      await handleOpenOutline(activeOutlineCourse!);
+    } catch (err: any) {
+      alert(err.message || 'Failed to reorder lessons via drag and drop.');
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('edusphere_token');
     localStorage.removeItem('edusphere_user');
@@ -700,44 +735,90 @@ export default function AdminDashboard() {
                               )}
 
                               <div className="p-3 space-y-2">
-                                {ch.lessons && ch.lessons.length > 0 ? ch.lessons.map((les, lidx) => (
-                                  <div key={les.id} className="flex items-center justify-between p-3 rounded-xl bg-white/3 hover:bg-white/5 border border-white/5 transition">
-                                    <div className="flex items-center gap-3 text-xs">
-                                      <span className="text-slate-600 font-mono">{String(lidx+1).padStart(2,'0')}</span>
-                                      <span className="text-indigo-400">
-                                        {les.type === 'video' && <Play className="h-3.5 w-3.5" />}
-                                        {les.type === 'audio' && <Volume2 className="h-3.5 w-3.5" />}
-                                        {les.type === 'pdf' && <FileText className="h-3.5 w-3.5" />}
-                                      </span>
-                                      <span className="text-slate-200 font-semibold">{les.title}</span>
-                                      <span className="text-[10px] text-slate-600 uppercase font-bold">{les.type}</span>
-                                    </div>
-                                    <div className="flex gap-1 items-center">
-                                      {lidx > 0 && (
-                                        <button onClick={(e) => { e.stopPropagation(); handleMoveLesson(ch.id, lidx, 'up'); }}
-                                          className="p-1.5 hover:bg-white/5 text-slate-500 hover:text-white rounded-lg transition cursor-pointer"
-                                          title="Move Up">
-                                          <ChevronUp className="h-3.5 w-3.5" />
+                                {ch.lessons && ch.lessons.length > 0 ? ch.lessons.map((les, lidx) => {
+                                  const isDragOver = dragOverLessonIndex === lidx && draggedChapterId === ch.id;
+                                  const isDragged = draggedLessonIndex === lidx && draggedChapterId === ch.id;
+
+                                  return (
+                                    <div 
+                                      key={les.id} 
+                                      draggable={true}
+                                      onDragStart={(e) => {
+                                        setDraggedLessonIndex(lidx);
+                                        setDraggedChapterId(ch.id);
+                                        e.dataTransfer.effectAllowed = "move";
+                                      }}
+                                      onDragOver={(e) => {
+                                        e.preventDefault();
+                                      }}
+                                      onDragEnter={() => {
+                                        if (draggedChapterId === ch.id) {
+                                          setDragOverLessonIndex(lidx);
+                                        }
+                                      }}
+                                      onDrop={async (e) => {
+                                        e.preventDefault();
+                                        if (draggedChapterId !== ch.id || draggedLessonIndex === null || draggedLessonIndex === lidx) {
+                                          setDragOverLessonIndex(null);
+                                          return;
+                                        }
+                                        const from = draggedLessonIndex;
+                                        setDraggedLessonIndex(null);
+                                        setDraggedChapterId(null);
+                                        setDragOverLessonIndex(null);
+                                        await handleDragReorder(ch.id, from, lidx);
+                                      }}
+                                      onDragEnd={() => {
+                                        setDraggedLessonIndex(null);
+                                        setDraggedChapterId(null);
+                                        setDragOverLessonIndex(null);
+                                      }}
+                                      className={`flex items-center justify-between p-3 rounded-xl bg-white/3 hover:bg-white/5 transition border ${
+                                        isDragOver 
+                                          ? 'border-indigo-500 bg-indigo-500/10 scale-[1.01] shadow-lg shadow-indigo-500/10' 
+                                          : 'border-white/5'
+                                      } ${isDragged ? 'opacity-40 select-none' : ''}`}
+                                    >
+                                      <div className="flex items-center gap-3 text-xs">
+                                        <div className="cursor-grab active:cursor-grabbing p-1 hover:bg-white/5 rounded text-slate-650 hover:text-slate-300 flex items-center justify-center flex-shrink-0">
+                                          <GripVertical className="h-3.5 w-3.5" />
+                                        </div>
+                                        <span className="text-slate-650 font-mono flex-shrink-0">{String(lidx+1).padStart(2,'0')}</span>
+                                        <span className="text-indigo-400 flex-shrink-0">
+                                          {les.type === 'video' && <Play className="h-3.5 w-3.5" />}
+                                          {les.type === 'audio' && <Volume2 className="h-3.5 w-3.5" />}
+                                          {les.type === 'pdf' && <FileText className="h-3.5 w-3.5" />}
+                                        </span>
+                                        <span className="text-slate-200 font-semibold truncate max-w-[200px] sm:max-w-xs">{les.title}</span>
+                                        <span className="text-[10px] text-slate-650 uppercase font-bold flex-shrink-0">{les.type}</span>
+                                      </div>
+                                      <div className="flex gap-1 items-center flex-shrink-0">
+                                        {lidx > 0 && (
+                                          <button onClick={(e) => { e.stopPropagation(); handleMoveLesson(ch.id, lidx, 'up'); }}
+                                            className="p-1.5 hover:bg-white/5 text-slate-500 hover:text-white rounded-lg transition cursor-pointer"
+                                            title="Move Up">
+                                            <ChevronUp className="h-3.5 w-3.5" />
+                                          </button>
+                                        )}
+                                        {lidx < ch.lessons.length - 1 && (
+                                          <button onClick={(e) => { e.stopPropagation(); handleMoveLesson(ch.id, lidx, 'down'); }}
+                                            className="p-1.5 hover:bg-white/5 text-slate-500 hover:text-white rounded-lg transition cursor-pointer"
+                                            title="Move Down">
+                                            <ChevronDown className="h-3.5 w-3.5" />
+                                          </button>
+                                        )}
+                                        <button onClick={(e) => { e.stopPropagation(); handleEditLessonSetup(ch.id, les); }}
+                                          className="p-1.5 hover:bg-white/5 text-slate-500 hover:text-white rounded-lg transition cursor-pointer">
+                                          <Edit2 className="h-3 w-3" />
                                         </button>
-                                      )}
-                                      {lidx < ch.lessons.length - 1 && (
-                                        <button onClick={(e) => { e.stopPropagation(); handleMoveLesson(ch.id, lidx, 'down'); }}
-                                          className="p-1.5 hover:bg-white/5 text-slate-500 hover:text-white rounded-lg transition cursor-pointer"
-                                          title="Move Down">
-                                          <ChevronDown className="h-3.5 w-3.5" />
+                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteLesson(les.id); }}
+                                          className="p-1.5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 rounded-lg transition cursor-pointer">
+                                          <Trash2 className="h-3 w-3" />
                                         </button>
-                                      )}
-                                      <button onClick={(e) => { e.stopPropagation(); handleEditLessonSetup(ch.id, les); }}
-                                        className="p-1.5 hover:bg-white/5 text-slate-500 hover:text-white rounded-lg transition cursor-pointer">
-                                        <Edit2 className="h-3 w-3" />
-                                      </button>
-                                      <button onClick={(e) => { e.stopPropagation(); handleDeleteLesson(les.id); }}
-                                        className="p-1.5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 rounded-lg transition cursor-pointer">
-                                        <Trash2 className="h-3 w-3" />
-                                      </button>
+                                      </div>
                                     </div>
-                                  </div>
-                                )) : (
+                                  );
+                                }) : (
                                   <p className="text-center text-slate-600 text-xs py-4">No lessons yet.</p>
                                 )}
                               </div>
