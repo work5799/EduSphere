@@ -454,35 +454,133 @@ app.get('/api/video-proxy/:lessonId', async (req, res) => {
     // Set strict no-download / no-cache response headers
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    res.setHeader('Content-Security-Policy', "default-src 'self' https://drive.google.com https://www.youtube.com https://www.youtube-nocookie.com; frame-src https://drive.google.com https://www.youtube.com https://www.youtube-nocookie.com; script-src 'unsafe-inline'; style-src 'unsafe-inline'");
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Permissions-Policy', 'accelerometer=(), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()');
+    res.setHeader('Content-Security-Policy',
+      "default-src 'self'; " +
+      "frame-src https://drive.google.com https://www.youtube.com https://www.youtube-nocookie.com; " +
+      "script-src 'unsafe-inline'; " +
+      "style-src 'unsafe-inline'; " +
+      "img-src 'self' data: https:; " +
+      "media-src 'none'; " +
+      "object-src 'none'; " +
+      "connect-src 'none'; " +
+      "worker-src 'none'; " +
+      "base-uri 'none'; " +
+      "form-action 'none'"
+    );
 
     const watermarkHtml = userEmail ? `<div id="wm">${userEmail} &bull; EDUSPHERE SECURE STREAM</div>` : '';
 
-    // Return a minimal sandboxed HTML page with the player
+    // Hardened proxy HTML page - blocks extension injection and IDM download detection
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EduSphere Stream</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; frame-src https://drive.google.com https://www.youtube.com https://www.youtube-nocookie.com; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src 'none'; object-src 'none'; connect-src 'none';">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<title>EduSphere</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{width:100%;height:100%;background:#000;overflow:hidden;user-select:none;-webkit-user-select:none}
-  iframe{width:100%;height:100%;border:0;display:block}
-  #wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-25deg);color:rgba(255,255,255,0.04);font-size:11px;font-weight:900;letter-spacing:0.25em;text-transform:uppercase;pointer-events:none;white-space:nowrap;z-index:9999;font-family:sans-serif}
+  html,body{width:100%;height:100%;background:#000;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none}
+  #player-frame{width:100%;height:100%;border:0;display:block;pointer-events:auto}
+  #shield{position:fixed;inset:0;z-index:2147483646;pointer-events:none}
+  #wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-25deg);color:rgba(255,255,255,0.035);font-size:11px;font-weight:900;letter-spacing:0.25em;text-transform:uppercase;pointer-events:none;white-space:nowrap;z-index:2147483647;font-family:sans-serif;user-select:none}
 </style>
 </head>
 <body>
+<div id="shield"></div>
 ${watermarkHtml}
-<iframe src="${embedUrl}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+<iframe
+  id="player-frame"
+  src="${embedUrl}"
+  allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+  allowfullscreen
+  referrerpolicy="no-referrer"
+  sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-fullscreen"
+></iframe>
 <script>
-  document.addEventListener('contextmenu',function(e){e.preventDefault();});
-  document.addEventListener('keydown',function(e){
-    if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&['I','J','C'].includes(e.key))||(e.ctrlKey&&['u','s'].includes(e.key))){e.preventDefault();}
+(function(){
+  'use strict';
+
+  // 1. Block right-click everywhere
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); e.stopPropagation(); return false; }, true);
+
+  // 2. Block devtools keyboard shortcuts
+  document.addEventListener('keydown', function(e){
+    if(e.key==='F12'||e.keyCode===123) { e.preventDefault(); e.stopImmediatePropagation(); return false; }
+    if(e.ctrlKey && e.shiftKey && (e.key==='I'||e.key==='J'||e.key==='C'||e.key==='K'||e.key==='E')) { e.preventDefault(); e.stopImmediatePropagation(); return false; }
+    if(e.ctrlKey && (e.key==='u'||e.key==='U'||e.key==='s'||e.key==='S'||e.key==='p'||e.key==='P')) { e.preventDefault(); e.stopImmediatePropagation(); return false; }
+  }, true);
+
+  // 3. Block drag events (prevent dragging video out)
+  document.addEventListener('dragstart', function(e){ e.preventDefault(); }, true);
+
+  // 4. MutationObserver — remove ANY element injected by IDM or other extensions
+  //    IDM injects elements with idm_id, idm_style, or specific class names
+  var BLOCK_ATTRS = ['idm_id','idm_style','__idm_id__','idm','idmcnb'];
+  var BLOCK_CLASSES = ['idm_download_button','idm-sniff-button','idm_panel'];
+  var observer = new MutationObserver(function(mutations){
+    mutations.forEach(function(m){
+      m.addedNodes.forEach(function(node){
+        if(node.nodeType !== 1) return;
+        var el = node;
+        // Remove if has IDM attributes
+        for(var i=0;i<BLOCK_ATTRS.length;i++){
+          if(el.hasAttribute && el.hasAttribute(BLOCK_ATTRS[i])){
+            el.remove(); return;
+          }
+        }
+        // Remove if has IDM class
+        for(var j=0;j<BLOCK_CLASSES.length;j++){
+          if(el.classList && el.classList.contains(BLOCK_CLASSES[j])){
+            el.remove(); return;
+          }
+        }
+        // Remove floating download panels injected at body level
+        if(el.style){
+          var zIdx = parseInt(el.style.zIndex||'0');
+          if(zIdx > 2000000 && el.id !== 'shield' && el.id !== 'wm'){
+            el.remove(); return;
+          }
+        }
+      });
+    });
   });
+  observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+
+  // 5. Freeze fetch and XHR so extensions can't intercept streams via them
+  try {
+    Object.defineProperty(window, 'fetch', { get: function(){ return undefined; }, configurable: false });
+  } catch(e){}
+
+  // 6. Anti-devtools debugger loop
+  var devt = setInterval(function(){
+    (function(){ (function(){ debugger; })(); })();
+  }, 200);
+
+  // 7. Console image trick — if devtools opens, redirect away
+  var img = new Image();
+  Object.defineProperty(img, 'id', { get: function(){
+    clearInterval(devt);
+    window.location.replace('about:blank');
+  }});
+  var checkDT = setInterval(function(){ console.log(img); console.clear(); }, 1500);
+
+  // Cleanup on unload
+  window.addEventListener('beforeunload', function(){
+    clearInterval(devt);
+    clearInterval(checkDT);
+    observer.disconnect();
+  });
+})();
 </script>
 </body>
 </html>`;
