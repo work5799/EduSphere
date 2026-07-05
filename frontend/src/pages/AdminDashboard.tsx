@@ -343,19 +343,41 @@ export default function AdminDashboard() {
     try {
       const parentChapter = outlineChapters.find(ch => ch.id === chapterId);
       const order = parentChapter ? (parentChapter.lessons?.length || 0) : 0;
-      const payload = {
-        title: lessonTitle,
-        type: lessonType,
-        drive_link: lessonLink,
-        sort_order: lessonId ? parentChapter?.lessons.find(l => l.id === lessonId)?.sort_order || 0 : order
-      };
 
       if (lessonId) {
         // Edit Lesson
+        const payload = {
+          title: lessonTitle,
+          type: lessonType,
+          drive_link: lessonLink.trim(),
+          sort_order: parentChapter?.lessons.find(l => l.id === lessonId)?.sort_order || 0
+        };
         await api.updateLesson(lessonId, payload);
       } else {
-        // Create Lesson
-        await api.createLesson(chapterId, payload);
+        // Create Lesson(s)
+        const links = lessonLink.split('\n').map(l => l.trim()).filter(Boolean);
+
+        if (links.length > 1) {
+          await Promise.all(
+            links.map((link, idx) => {
+              const payload = {
+                title: `${lessonTitle} - Part ${idx + 1}`,
+                type: lessonType,
+                drive_link: link,
+                sort_order: order + idx
+              };
+              return api.createLesson(chapterId, payload);
+            })
+          );
+        } else {
+          const payload = {
+            title: lessonTitle,
+            type: lessonType,
+            drive_link: links[0] || '',
+            sort_order: order
+          };
+          await api.createLesson(chapterId, payload);
+        }
       }
 
       // Reset
