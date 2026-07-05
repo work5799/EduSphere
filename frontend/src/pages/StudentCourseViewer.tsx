@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, parseDriveLink, getCurrentUser, parseYoutubeLink } from '../utils/api';
 import { 
@@ -41,6 +41,37 @@ const deobfuscateLink = (obfuscated: string) => {
     return obfuscated;
   }
 };
+
+interface ProtectedPlayerProps {
+  src: string;
+  title: string;
+}
+
+function ProtectedPlayer({ src, title }: ProtectedPlayerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    containerRef.current.innerHTML = '';
+    const shadowRoot = containerRef.current.attachShadow({ mode: 'closed' });
+
+    const iframe = document.createElement('iframe');
+    iframe.src = src;
+    iframe.width = '100%';
+    iframe.height = '100%';
+    iframe.allow = 'autoplay; encrypted-media';
+    iframe.allowFullscreen = true;
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
+    iframe.style.border = '0';
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.title = title;
+
+    shadowRoot.appendChild(iframe);
+  }, [src, title]);
+
+  return <div ref={containerRef} className="w-full h-full" />;
+}
 
 export default function StudentCourseViewer() {
   const { id } = useParams<{ id: string }>();
@@ -451,27 +482,9 @@ export default function StudentCourseViewer() {
             <div className="bg-[#09090f]/60 p-4 sm:p-8 flex items-center justify-center flex-shrink-0 relative border-b border-white/5">
               <div className="w-full max-w-4xl aspect-video bg-black rounded-3xl overflow-hidden border border-white/5 shadow-2xl shadow-indigo-500/5 relative video-container-protected">
                 {parsedDrive ? (
-                  <iframe
-                    src={parsedDrive.embedUrl}
-                    width="100%"
-                    height="100%"
-                    allow="autoplay; encrypted-media"
-                    allowFullScreen
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-                    className="border-0 animate-fade-in"
-                    title={activeLesson.title}
-                  />
+                  <ProtectedPlayer src={parsedDrive.embedUrl} title={activeLesson.title} />
                 ) : mainLink ? (
-                  <iframe
-                    src={mainLink}
-                    width="100%"
-                    height="100%"
-                    allow="autoplay; encrypted-media"
-                    allowFullScreen
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-                    className="border-0 animate-fade-in"
-                    title={activeLesson.title}
-                  />
+                  <ProtectedPlayer src={mainLink} title={activeLesson.title} />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 p-6 text-center">
                     <FileText className="h-12 w-12 text-slate-700 mb-3 animate-pulse" />
