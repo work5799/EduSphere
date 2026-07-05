@@ -5,7 +5,7 @@ import {
   GraduationCap, LogOut, Users, BookOpen, UserCheck, 
   BarChart3, Plus, Edit2, Trash2, Check, X, FileText, 
   Play, Volume2, ArrowLeft, RefreshCw, FolderPlus, FilePlus,
-  Loader, UserPlus
+  Loader, UserPlus, ChevronUp, ChevronDown, ChevronRight
 } from 'lucide-react';
 
 interface Student {
@@ -74,6 +74,7 @@ export default function AdminDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'moderator'>('admin');
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
   
   // Active course outline editor state
   const [activeOutlineCourse, setActiveOutlineCourse] = useState<Course | null>(null);
@@ -382,6 +383,53 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleMoveLesson = async (chapterId: string, idx: number, direction: 'up' | 'down') => {
+    const chapter = outlineChapters.find(ch => ch.id === chapterId);
+    if (!chapter || !chapter.lessons) return;
+
+    const lessons = [...chapter.lessons];
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= lessons.length) return;
+
+    const currentLesson = lessons[idx];
+    const targetLesson = lessons[targetIdx];
+
+    const tempOrder = currentLesson.sort_order;
+    currentLesson.sort_order = targetLesson.sort_order;
+    targetLesson.sort_order = tempOrder;
+
+    if (currentLesson.sort_order === targetLesson.sort_order) {
+      if (direction === 'up') {
+        currentLesson.sort_order = Math.max(0, targetLesson.sort_order - 1);
+        targetLesson.sort_order = currentLesson.sort_order + 1;
+      } else {
+        currentLesson.sort_order = targetLesson.sort_order + 1;
+        targetLesson.sort_order = Math.max(0, currentLesson.sort_order - 1);
+      }
+    }
+
+    try {
+      await Promise.all([
+        api.updateLesson(currentLesson.id, {
+          title: currentLesson.title,
+          type: currentLesson.type,
+          drive_link: currentLesson.drive_link,
+          sort_order: currentLesson.sort_order
+        }),
+        api.updateLesson(targetLesson.id, {
+          title: targetLesson.title,
+          type: targetLesson.type,
+          drive_link: targetLesson.drive_link,
+          sort_order: targetLesson.sort_order
+        })
+      ]);
+
+      await handleOpenOutline(activeOutlineCourse!);
+    } catch (err: any) {
+      alert(err.message || 'Failed to reorder lessons.');
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('edusphere_token');
     localStorage.removeItem('edusphere_user');
@@ -570,107 +618,134 @@ export default function AdminDashboard() {
                       <p className="text-slate-500 text-sm">No chapters yet. Add a chapter to get started.</p>
                     </div>
                   ) : (
-                    outlineChapters.map((ch, idx) => (
-                      <div key={ch.id} className="rounded-2xl border border-slate-800 overflow-hidden"
-                        style={{background:'rgba(15,15,26,0.8)'}}>
-                        <div className="flex items-center justify-between p-4 border-b border-slate-800"
-                          style={{background:'rgba(255,255,255,0.02)'}}>
-                          <div className="flex items-center gap-3">
-                            <span className="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 text-xs font-black flex items-center justify-center border border-indigo-500/20">
-                              {idx + 1}
-                            </span>
-                            <h3 className="font-bold text-white text-sm">{ch.title}</h3>
-                            <span className="text-[10px] text-slate-500">{ch.lessons?.length || 0} lessons</span>
+                    outlineChapters.map((ch, idx) => {
+                      const isExpanded = expandedChapters[ch.id] || false;
+                      return (
+                        <div key={ch.id} className="rounded-2xl border border-slate-800 overflow-hidden"
+                          style={{background:'rgba(15,15,26,0.8)'}}>
+                          <div 
+                            onClick={() => setExpandedChapters(prev => ({ ...prev, [ch.id]: !prev[ch.id] }))}
+                            className="flex items-center justify-between p-4 border-b border-slate-800 cursor-pointer select-none hover:bg-white/2 transition"
+                            style={{background:'rgba(255,255,255,0.02)'}}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-slate-500 flex-shrink-0">
+                                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              </span>
+                              <span className="w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 text-xs font-black flex items-center justify-center border border-indigo-500/20">
+                                {idx + 1}
+                              </span>
+                              <h3 className="font-bold text-white text-sm">{ch.title}</h3>
+                              <span className="text-[10px] text-slate-500">{ch.lessons?.length || 0} lessons</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={(e) => { e.stopPropagation(); setShowChapterFormFor(ch.id); setChapterTitle(ch.title); }}
+                                className="p-2 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition cursor-pointer">
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); handleDeleteChapter(ch.id); }}
+                                className="p-2 hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 rounded-lg transition cursor-pointer">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); setShowLessonFormFor({ chapterId: ch.id, lessonId: null }); setLessonTitle(''); setLessonLink(''); setLessonType('video'); }}
+                                className="flex items-center gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg transition cursor-pointer">
+                                <FilePlus className="h-3.5 w-3.5" />
+                                Add Lesson
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => { setShowChapterFormFor(ch.id); setChapterTitle(ch.title); }}
-                              className="p-2 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition cursor-pointer">
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </button>
-                            <button onClick={() => handleDeleteChapter(ch.id)}
-                              className="p-2 hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 rounded-lg transition cursor-pointer">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                            <button onClick={() => { setShowLessonFormFor({ chapterId: ch.id, lessonId: null }); setLessonTitle(''); setLessonLink(''); setLessonType('video'); }}
-                              className="flex items-center gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg transition cursor-pointer">
-                              <FilePlus className="h-3.5 w-3.5" />
-                              Add Lesson
-                            </button>
-                          </div>
-                        </div>
 
-                        {showLessonFormFor?.chapterId === ch.id && (
-                          <form onSubmit={handleLessonSubmit} className="p-5 border-b border-slate-800 space-y-3"
-                            style={{background:'rgba(99,102,241,0.04)'}}>
-                            <h4 className="font-bold text-sm text-slate-300 flex items-center gap-1.5">
-                              {showLessonFormFor.lessonId ? (
-                                <>
-                                  <Edit2 className="h-4 w-4 text-indigo-400" />
-                                  <span>Edit Lesson</span>
-                                </>
-                              ) : (
-                                <>
-                                  <FilePlus className="h-4 w-4 text-indigo-400" />
-                                  <span>Add Lesson</span>
-                                </>
+                          {isExpanded && (
+                            <>
+                              {showLessonFormFor?.chapterId === ch.id && (
+                                <form onSubmit={handleLessonSubmit} className="p-5 border-b border-slate-800 space-y-3"
+                                  style={{background:'rgba(99,102,241,0.04)'}}>
+                                  <h4 className="font-bold text-sm text-slate-300 flex items-center gap-1.5">
+                                    {showLessonFormFor.lessonId ? (
+                                      <>
+                                        <Edit2 className="h-4 w-4 text-indigo-400" />
+                                        <span>Edit Lesson</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <FilePlus className="h-4 w-4 text-indigo-400" />
+                                        <span>Add Lesson</span>
+                                      </>
+                                    )}
+                                  </h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div className="md:col-span-2">
+                                      <input type="text" required value={lessonTitle} onChange={e => setLessonTitle(e.target.value)}
+                                        placeholder="Lesson title..."
+                                        className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-2.5 text-xs text-white"
+                                      />
+                                    </div>
+                                    <select value={lessonType} onChange={e => setLessonType(e.target.value as any)}
+                                      className="bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-2.5 text-xs text-white">
+                                      <option value="video">Video</option>
+                                      <option value="audio">Audio</option>
+                                      <option value="pdf">PDF Document</option>
+                                    </select>
+                                  </div>
+                                  <textarea rows={3} value={lessonLink} onChange={e => setLessonLink(e.target.value)}
+                                    placeholder="Google Drive link(s)... (If you want to add multiple files/PDFs, paste each Google Drive URL on a new line)"
+                                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-2.5 text-xs text-white resize-none"
+                                  />
+                                  <div className="flex gap-2 justify-end">
+                                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg cursor-pointer text-xs">Save</button>
+                                    <button type="button" onClick={() => setShowLessonFormFor(null)}
+                                      className="bg-slate-800 text-slate-400 py-2 px-4 rounded-lg cursor-pointer text-xs">Cancel</button>
+                                  </div>
+                                </form>
                               )}
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              <div className="md:col-span-2">
-                                <input type="text" required value={lessonTitle} onChange={e => setLessonTitle(e.target.value)}
-                                  placeholder="Lesson title..."
-                                  className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-2.5 text-xs text-white"
-                                />
-                              </div>
-                              <select value={lessonType} onChange={e => setLessonType(e.target.value as any)}
-                                className="bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-2.5 text-xs text-white">
-                                <option value="video">Video</option>
-                                <option value="audio">Audio</option>
-                                <option value="pdf">PDF Document</option>
-                              </select>
-                            </div>
-                            <textarea rows={3} value={lessonLink} onChange={e => setLessonLink(e.target.value)}
-                              placeholder="Google Drive link(s)... (If you want to add multiple files/PDFs, paste each Google Drive URL on a new line)"
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-2.5 text-xs text-white resize-none"
-                            />
-                            <div className="flex gap-2 justify-end">
-                              <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg cursor-pointer text-xs">Save</button>
-                              <button type="button" onClick={() => setShowLessonFormFor(null)}
-                                className="bg-slate-800 text-slate-400 py-2 px-4 rounded-lg cursor-pointer text-xs">Cancel</button>
-                            </div>
-                          </form>
-                        )}
 
-                        <div className="p-3 space-y-2">
-                          {ch.lessons && ch.lessons.length > 0 ? ch.lessons.map((les, lidx) => (
-                            <div key={les.id} className="flex items-center justify-between p-3 rounded-xl bg-white/3 hover:bg-white/5 border border-white/5 transition">
-                              <div className="flex items-center gap-3 text-xs">
-                                <span className="text-slate-600 font-mono">{String(lidx+1).padStart(2,'0')}</span>
-                                <span className="text-indigo-400">
-                                  {les.type === 'video' && <Play className="h-3.5 w-3.5" />}
-                                  {les.type === 'audio' && <Volume2 className="h-3.5 w-3.5" />}
-                                  {les.type === 'pdf' && <FileText className="h-3.5 w-3.5" />}
-                                </span>
-                                <span className="text-slate-200 font-semibold">{les.title}</span>
-                                <span className="text-[10px] text-slate-600 uppercase font-bold">{les.type}</span>
+                              <div className="p-3 space-y-2">
+                                {ch.lessons && ch.lessons.length > 0 ? ch.lessons.map((les, lidx) => (
+                                  <div key={les.id} className="flex items-center justify-between p-3 rounded-xl bg-white/3 hover:bg-white/5 border border-white/5 transition">
+                                    <div className="flex items-center gap-3 text-xs">
+                                      <span className="text-slate-600 font-mono">{String(lidx+1).padStart(2,'0')}</span>
+                                      <span className="text-indigo-400">
+                                        {les.type === 'video' && <Play className="h-3.5 w-3.5" />}
+                                        {les.type === 'audio' && <Volume2 className="h-3.5 w-3.5" />}
+                                        {les.type === 'pdf' && <FileText className="h-3.5 w-3.5" />}
+                                      </span>
+                                      <span className="text-slate-200 font-semibold">{les.title}</span>
+                                      <span className="text-[10px] text-slate-600 uppercase font-bold">{les.type}</span>
+                                    </div>
+                                    <div className="flex gap-1 items-center">
+                                      {lidx > 0 && (
+                                        <button onClick={(e) => { e.stopPropagation(); handleMoveLesson(ch.id, lidx, 'up'); }}
+                                          className="p-1.5 hover:bg-white/5 text-slate-500 hover:text-white rounded-lg transition cursor-pointer"
+                                          title="Move Up">
+                                          <ChevronUp className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
+                                      {lidx < ch.lessons.length - 1 && (
+                                        <button onClick={(e) => { e.stopPropagation(); handleMoveLesson(ch.id, lidx, 'down'); }}
+                                          className="p-1.5 hover:bg-white/5 text-slate-500 hover:text-white rounded-lg transition cursor-pointer"
+                                          title="Move Down">
+                                          <ChevronDown className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
+                                      <button onClick={(e) => { e.stopPropagation(); handleEditLessonSetup(ch.id, les); }}
+                                        className="p-1.5 hover:bg-white/5 text-slate-500 hover:text-white rounded-lg transition cursor-pointer">
+                                        <Edit2 className="h-3 w-3" />
+                                      </button>
+                                      <button onClick={(e) => { e.stopPropagation(); handleDeleteLesson(les.id); }}
+                                        className="p-1.5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 rounded-lg transition cursor-pointer">
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                )) : (
+                                  <p className="text-center text-slate-600 text-xs py-4">No lessons yet.</p>
+                                )}
                               </div>
-                              <div className="flex gap-1">
-                                <button onClick={() => handleEditLessonSetup(ch.id, les)}
-                                  className="p-1.5 hover:bg-white/5 text-slate-500 hover:text-white rounded-lg transition cursor-pointer">
-                                  <Edit2 className="h-3 w-3" />
-                                </button>
-                                <button onClick={() => handleDeleteLesson(les.id)}
-                                  className="p-1.5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 rounded-lg transition cursor-pointer">
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              </div>
-                            </div>
-                          )) : (
-                            <p className="text-center text-slate-600 text-xs py-4">No lessons yet.</p>
+                            </>
                           )}
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               )}
